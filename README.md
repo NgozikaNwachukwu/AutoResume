@@ -27,4 +27,4 @@
 This is a 10-day DevOps project aimed for completion by mid-August 2025 in time for Winter co-op applications.
 
 ## Project Board
-https://github.com/users/NgozikaNwachukwu/projects/1/views/1
+AutoResume Sprint Board: https://github.com/users/NgozikaNwachukwu/projects/1/views/1
