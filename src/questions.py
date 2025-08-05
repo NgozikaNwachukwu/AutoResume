@@ -5,8 +5,16 @@ def contact_info():
     contact["full_name"] = input("Full name: ")
     contact["email"] = input("Email address: ")
     contact["phone"] = input("Phone number: ")
-    contact["linkedin"] = input("LinkedIn URL: ")
+    contact["Location"] = input("Location")
     # we have now created the key -> value pairs for out contact dictionary
+
+    # asking the user if they have linkedin
+    has_linkedin = input("Do you have a Linkedin page? (yes/no): ").lower()
+    if has_linkedin == "yes":
+        contact["linkedin"] = input("LinkedIn URL: ")
+    else:
+        contact["linkedin"] = None
+    
     # Asking the user if they have a github url
     has_github = input("Do you have a github page? (yes/no): ").lower()
     if has_github == "yes":
@@ -20,5 +28,8 @@ def contact_info():
         contact["portfolio"] = input("Portfolio URL: ")
     else:
         contact["portfolio"] = None
+    
+    return contact
 
-contact_info()
+if __name__ == "__main__":
+    print(contact_info())
