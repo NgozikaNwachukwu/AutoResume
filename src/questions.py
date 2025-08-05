@@ -20,3 +20,5 @@ def contact_info():
         contact["portfolio"] = input("Portfolio URL: ")
     else:
         contact["portfolio"] = None
+
+contact_info()
