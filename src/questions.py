@@ -9,7 +9,7 @@ def contact_info():
     # we have now created the key -> value pairs for out contact dictionary
 
     # asking the user if they have linkedin
-    has_linkedin = input("Do you have a Linkedin page? (yes/no): ").lower()
+    has_linkedin = input("Do you have a Linkedin page? (yes/no): ").lower()git
     if has_linkedin == "yes":
         contact["linkedin"] = input("LinkedIn URL: ")
     
@@ -25,5 +25,25 @@ def contact_info():
    
     return contact
 
+    
+    #educational background
+def education_info():
+    print("Let's continue with your education details")
+    education = {} #Education dictionary 
+    education["School"] = input("What school did you attend?: ")
+    education["Degree"] = input("What was your major?: ")
+    start = input("start date: ")
+    end = input("end date: ")
+     #creating concatenated date string 
+    education["date"] = start + "-" + end
+    education["Location"] = input("location of school: ")
+   
+#gpa info
+    has_gpa = input("Would you like to input your GPA? (yes/no): ").lower()
+    if has_gpa == "yes":
+        education["gpa"] = input("GPA: ")
+    return education
+
 if __name__ == "__main__":
     print(contact_info())
+    print(education_info())
