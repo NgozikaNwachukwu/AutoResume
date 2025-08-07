@@ -1,245 +1,169 @@
 import re
 
+# Helper function to ensure input is not empty
+def not_empty(prompt):
+    while True:
+        value = input(prompt).strip()
+        if value:
+            return value
+        print("This field cannot be empty.")
+
+# Helper function to validate email format
+def valid_email():
+    while True:
+        email = input("Email address(e.g allydee2@gmail.com): ").strip()
+        if re.match(r"[^@\s]+@[^@\s]+\.[a-zA-Z0-9]+$", email):
+            return email
+        print("Invalid email format. Try again.")
+
+# Helper function to validate phone number format
+def valid_phone():
+    while True:
+        phone = input("Phone number(e.g +16473807394): ").strip()
+        if re.match(r"^\+?\d+$", phone):
+            return phone
+        print("Invalid phone number. Only digits allowed (optionally starting with '+').")
+
+# Helper function to validate URLs
+def valid_url(prompt):
+    while True:
+        url = input(prompt).strip()
+        if url == "" or re.match(r"^https?://[^\s]+$", url):
+            return url
+        print("Invalid URL. Try again.")
+
+# Helper function to ensure that all of the yes/no questions are not left blank throughout all the sections
+
+def yes_no(prompt):
+    while True:
+        response = input(prompt).strip().lower()
+        if response in ["yes", "no"]:
+            return response
+        print("Please answer with 'yes' or 'no'.")
+
 def contact_info():
     print(" Let's start with your contact information")
-    contact = {} # We are creating the contact dictionary
+    contact = {}
+    contact["full_name"] = not_empty("Full name: ")
+    contact["email"] = valid_email()
+    contact["phone"] = valid_phone()
+    contact["Location"] = not_empty("Location (e.g Toronto, ON): ")
 
-    def not_empty(prompt):
-        while True:
-            value = input(prompt).strip()
-            if value:
-                return value
-            print("This field cannot be empty.")
+    if yes_no("Do you have a Linkedin page? (yes/no): ") == "yes":
+        contact["linkedin"] = valid_url("LinkedIn URL: ")
 
-    def valid_email():
-        while True:
-            email = input("Email address: ").strip()
-            if re.match(r"[^@\s]+@[^@\s]+\.[a-zA-Z0-9]+$", email):
-                return email
-            print("Invalid email format. Try again.")
+    if yes_no("Do you have a github page? (yes/no): ") == "yes":
+        contact["github"] = valid_url("Github profile URL: ")
 
-    def valid_url(prompt):
-        while True:
-            url = input(prompt).strip()
-            if url == "" or re.match(r"^(https?://)?[\w.-]+(\.[a-z]{2,})+/?$", url):
-                return url
-            print("Invalid URL. Try again.")
+    if yes_no("Do you have a portfolio? (yes/no): ") == "yes":
+        contact["portfolio"] = valid_url("Portfolio URL: ")
 
-    
-    contact["full_name"] = input("Full name: ")
-    contact["email"] = input("Email address: ")
-    contact["phone"] = input("Phone number: ")
-    contact["Location"] = input("Location (e.g Toronto, ON): ")
-    # we have now created the key -> value pairs for out contact dictionary
-
-    # asking the user if they have linkedin
-    has_linkedin = input("Do you have a Linkedin page? (yes/no): ").lower()
-    if has_linkedin == "yes":
-        contact["linkedin"] = input("LinkedIn URL: ")
-    
-    # Asking the user if they have a github url
-    has_github = input("Do you have a github page? (yes/no): ").lower()
-    if has_github == "yes":
-        contact["github"] = input("Github profile URL: ")
-
-    #now we are going to ask the user if they have a portfolio
-    has_portfolio = input("Do you have a portfolio? (yes/no): ").lower()
-    if has_portfolio == "yes": 
-        contact["portfolio"] = input("Portfolio URL: ")
-   
     return contact
 
-    
-    #educational background
 def education_info():
     print("\n Let's enter your education history:")
-    education_list = []
-
-    def not_empty(prompt):
-        while True:
-            value = input(prompt).strip()
-            if value:
-                return value
-            print("This field cannot be empty.")
-
+    education = []
     while True:
         school = not_empty("School name: ")
-        degree = not_empty("Degree or major: ")
-        start = not_empty("Start Date (e.g. Jan 2024): ")
-        end = not_empty("End Date (or 'Present'): ")
-        location = not_empty("School location: ")
+        degree = not_empty("Degree or major(e.g Software Engineering): ")
+        start_date = not_empty("Start Date (e.g. Jan 2024): ")
+        end_date = not_empty("End Date (or 'Present'): ")
+        location = not_empty("School location(e.g Oshawa, ON): ")
+        date_range = f"{start_date} - {end_date}"
+        entry = {"school": school, "degree": degree, "date": date_range, "location": location}
 
-        edu_entry = {
-            "school": school,
-            "degree": degree,
-            "date": f"{start} - {end}",
-            "location": location
-        }
+        if yes_no("Would you like to include your GPA? (yes/no): ") == "yes":
+            entry["GPA"] = not_empty("Enter your GPA (e.g 3.7): ")
 
-        # Optional GPA
-        has_gpa = input("Would you like to include your GPA? (yes/no): ").strip().lower()
-        if has_gpa == "yes":
-            edu_entry["gpa"] = input("GPA: ").strip()
-
-        education_list.append(edu_entry)
-
-        # Ask if they want to add another
-        add_another = input("\nWould you like to add another education entry? (yes/no): ").strip().lower()
-        if add_another != "yes":
+        education.append(entry)
+        if yes_no("Would you like to add another education entry? (yes/no): ") == "no":
             break
-
-    return education_list
+    return education
 
 def experience_info():
     print("\nLet's enter your past experiences.")
     experiences = []
-
-    def not_empty(prompt):
-        while True:
-            value = input(prompt).strip()
-            if value:
-                return value
-            print("This field cannot be empty.")
-
-
     while True:
-        title = input("Job Title: ").strip()
-        company = input("Company Name: ").strip()
-        location = input("Location(e.g Toronto, ON): ").strip()
-
-        # Start and end date with option for "Present"
-        start_date = input("Start Date (e.g. Jan 2024): ").strip()
-        end_date = input("End Date (or 'Present'): ").strip()
-
-        summary = input("Briefly describe your responsibilities/duties: ").strip()
+        title = not_empty("Job Title: ")
+        company = not_empty("Company Name: ")
+        location = not_empty("Location(e.g Toronto, ON): ")
+        start = not_empty("Start Date (e.g. Jan 2024): ")
+        end = not_empty("End Date (or 'Present'): ")
+        summary = not_empty("Briefly describe your responsibilities/duties: ")
 
         experiences.append({
             "title": title,
             "company": company,
             "location": location,
-            "date": f"{start_date} - {end_date}",
+            "date": f"{start} - {end}",
             "summary": summary
         })
-
-        another = input("Would you like to add another experience? (yes/no): ").lower()
-        if another != "yes":
+        if yes_no("Would you like to add another experience? (yes/no): ") == "no":
             break
-
     return experiences
 
-
 def project_info():
-    print("\nLet's enter your projects.")
     projects = []
-
-    def not_empty(prompt):
+    if yes_no("Would you like to add any projects? (yes/no): ") == "yes":
         while True:
-            value = input(prompt).strip()
-            if value:
-                return value
-            print("This field cannot be empty.")
+            title = not_empty("Project Title: ")
+            tools = not_empty("Tools & Technologies used(e.g Python, Java, etc): ")
+            start = not_empty("Start Date (e.g. Feb 2025): ")
+            end = not_empty("End Date (or 'Present'): ")
+            summary = not_empty("What did you do in the project?(describe what was done): ")
 
-
-    while True:
-        title = input("Project Title: ").strip()
-        tools = input("Tools & Technologies used: ").strip()
-        start_date = input("Start Date (e.g. Feb 2025): ").strip()
-        end_date = input("End Date (or 'Present'): ").strip()
-        summary = input("What did you do in the project?: ").strip()
-
-        projects.append({
-            "title": title,
-            "tools": tools,
-            "date": f"{start_date} - {end_date}",
-            "summary": summary
-        })
-
-        another = input("Would you like to add another project? (yes/no): ").lower()
-        if another != "yes":
-            break
-
+            projects.append({
+                "title": title,
+                "tools": tools,
+                "date": f"{start} - {end}",
+                "summary": summary
+            })
+            if yes_no("Would you like to add another project? (yes/no): ") == "no":
+                break
     return projects
 
-
-
-
 def skill_info():
-    print("\n Let's add your skills!")
-    skill_categories = {}  # Dictionary to hold categories and skills
-
-    def not_empty(prompt):
-        while True:
-            value = input(prompt).strip()
-            if value:
-                return value
-            print("This field cannot be empty.")
-
+    print("\n Let's add your skills!\n")
+    skills = {}
     while True:
-        category = input("\nEnter skill category (e.g., Languages, Frameworks): ").strip()
-        if not category:
-            print("Category name cannot be empty.")
-            continue
-
-        skills = []
+        category = not_empty("Enter skill category (e.g., Languages, Frameworks): ")
+        skills[category] = []
         print(f"Enter skills for {category} tip, separate them by commas! eg: Python, Java, etc.(type 'done' when finished):")
         while True:
             skill = input(f"- {category}: ").strip()
             if skill.lower() == "done":
+                if not skills[category]:
+                    print("You must enter at least one skill before typing 'done'.")
+                    continue
                 break
-            if skill:
-                skills.append(skill.capitalize())
-
-        skill_categories[category] = skills
-
-        add_more = input("\nWould you like to add another skill category? (yes/no): ").strip().lower()
-        if add_more != "yes":
+            elif skill:
+                skills[category].append(skill)
+            else:
+                print("Skill cannot be empty.")
+        if yes_no("Would you like to add another skill category? (yes/no): ") == "no":
             break
+    return skills
 
-    return skill_categories
-
-#Exta curricular
 def extra_curriculars():
-    extras = []
-
-    def not_empty(prompt):
+    extracurriculars = []
+    if yes_no("\n Would you like to add an extracurricular activity? (yes/no): ") == "yes":
         while True:
-            value = input(prompt).strip()
-            if value:
-                return value
-            print("This field cannot be empty.")
+            title = not_empty("Enter the title of the activity: ")
+            start = not_empty("Start Date (e.g. Jan 2023): ")
+            end = not_empty("End Date (or 'Present'): ")
+            description = not_empty("Briefly describe the activity: ")
 
-    choice = input("\n Would you like to add an extracurricular activity? (yes/no): ").strip().lower()
-    if choice != "yes":
-        return []
+            extracurriculars.append({
+                "title": title,
+                "date": f"{start} - {end}",
+                "description": description
+            })
 
-    
-    while True:
-        print("\nEnter extracurricular activity details (or type 'done' as title to finish)")
-        title = input("Activity Title: ").strip()
-        if title.lower() == "done":
-            break
-        if not title:
-            print("Title cannot be empty.")
-            continue
+            if yes_no("Would you like to add another extracurricular activity? (yes/no): ") == "no":
+                break
+    return extracurriculars
 
-        start_date = input("Start Date (e.g. Jan 2024): ").strip()
-        end_date = input("End Date (or 'Present'): ").strip() # i added or present
-        description = input("Short description of the activity: ").strip()
-
-        extras.append({
-            "title": title,
-            "date": f"{start_date} - {end_date}",
-            "description": description
-        })
-
-        another = input("\nWould you like to add another extracurricular activity? (yes/no): ").strip().lower()
-        if another != "yes":
-            break
-
-    return extras
-
-
-
+# For testing
 if __name__ == "__main__":
     contact = contact_info()
     education = education_info()
@@ -248,7 +172,6 @@ if __name__ == "__main__":
     skills = skill_info()
     extracurriculars = extra_curriculars()
 
-#there is no point of these print statements lol, its just for testing. we will remove it dw.
     print("\n collected info:")
     print("\nContact Info:", contact)
     print("\nEducation:", education)
@@ -256,4 +179,3 @@ if __name__ == "__main__":
     print("\nProjects:", projects)
     print("\nSkills:", skills)
     print("\nExtracurriculars:", extracurriculars)
- 
