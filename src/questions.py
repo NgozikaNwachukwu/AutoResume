@@ -1,6 +1,6 @@
 import re
 
-# Helper function to ensure input is not empty
+# ---------- Helper Functions ----------
 def not_empty(prompt):
     while True:
         value = input(prompt).strip()
@@ -8,7 +8,6 @@ def not_empty(prompt):
             return value
         print("This field cannot be empty.")
 
-# Helper function to validate email format
 def valid_email():
     while True:
         email = input("Email address(e.g allydee2@gmail.com): ").strip()
@@ -16,7 +15,6 @@ def valid_email():
             return email
         print("Invalid email format. Try again.")
 
-# Helper function to validate phone number format
 def valid_phone():
     while True:
         phone = input("Phone number(e.g +16473807394): ").strip()
@@ -24,15 +22,12 @@ def valid_phone():
             return phone
         print("Invalid phone number. Only digits allowed (optionally starting with '+').")
 
-# Helper function to validate URLs
 def valid_url(prompt):
     while True:
         url = input(prompt).strip()
         if url == "" or re.match(r"^https?://[^\s]+$", url):
             return url
         print("Invalid URL. Try again.")
-
-# Helper function to ensure that all of the yes/no questions are not left blank throughout all the sections
 
 def yes_no(prompt):
     while True:
@@ -41,13 +36,14 @@ def yes_no(prompt):
             return response
         print("Please answer with 'yes' or 'no'.")
 
+# ---------- Section Functions ----------
 def contact_info():
-    print(" Let's start with your contact information")
+    print("Let's start with your contact information")
     contact = {}
     contact["full_name"] = not_empty("Full name: ")
     contact["email"] = valid_email()
     contact["phone"] = valid_phone()
-    contact["Location"] = not_empty("Location (e.g Toronto, ON): ")
+    contact["location"] = not_empty("Location (e.g Toronto, ON): ")
 
     if yes_no("Do you have a Linkedin page? (yes/no): ") == "yes":
         contact["linkedin"] = valid_url("LinkedIn URL: ")
@@ -61,7 +57,7 @@ def contact_info():
     return contact
 
 def education_info():
-    print("\n Let's enter your education history:")
+    print("\nLet's enter your education history:")
     education = []
     while True:
         school = not_empty("School name: ")
@@ -95,7 +91,7 @@ def experience_info():
             "title": title,
             "company": company,
             "location": location,
-            "date": f"{start} - {end}",
+            "dates": f"{start} - {end}",
             "summary": summary
         })
         if yes_no("Would you like to add another experience? (yes/no): ") == "no":
@@ -115,7 +111,7 @@ def project_info():
             projects.append({
                 "title": title,
                 "tools": tools,
-                "date": f"{start} - {end}",
+                "dates": f"{start} - {end}",
                 "summary": summary
             })
             if yes_no("Would you like to add another project? (yes/no): ") == "no":
@@ -123,7 +119,7 @@ def project_info():
     return projects
 
 def skill_info():
-    print("\n Let's add your skills!\n")
+    print("\nLet's add your skills!\n")
     skills = {}
     while True:
         category = not_empty("Enter skill category (e.g., Languages, Frameworks): ")
@@ -146,7 +142,7 @@ def skill_info():
 
 def extra_curriculars():
     extracurriculars = []
-    if yes_no("\n Would you like to add an extracurricular activity? (yes/no): ") == "yes":
+    if yes_no("\nWould you like to add an extracurricular activity? (yes/no): ") == "yes":
         while True:
             title = not_empty("Enter the title of the activity: ")
             start = not_empty("Start Date (e.g. Jan 2023): ")
@@ -155,27 +151,29 @@ def extra_curriculars():
 
             extracurriculars.append({
                 "title": title,
-                "date": f"{start} - {end}",
-                "description": description
+                "dates": f"{start} - {end}",
+                "summary": description
             })
 
             if yes_no("Would you like to add another extracurricular activity? (yes/no): ") == "no":
                 break
     return extracurriculars
 
-# For testing
-if __name__ == "__main__":
-    contact = contact_info()
-    education = education_info()
-    experience = experience_info()
-    projects = project_info()
-    skills = skill_info()
-    extracurriculars = extra_curriculars()
+# ---------- New Bundler Function ----------
+def collect_all_input():
+    return {
+        "contact": contact_info(),
+        "education": education_info(),
+        "experience": experience_info(),
+        "projects": project_info(),
+        "skills": skill_info(),
+        "extracurriculars": extra_curriculars()
+    }
 
-    print("\n collected info:")
-    print("\nContact Info:", contact)
-    print("\nEducation:", education)
-    print("\nExperience:", experience)
-    print("\nProjects:", projects)
-    print("\nSkills:", skills)
-    print("\nExtracurriculars:", extracurriculars)
+# ---------- Main Runner ----------
+if __name__ == "__main__":
+    data = collect_all_input()
+
+    from src.builder import build_resume
+    structured = build_resume(data)
+    print("\nStructured resume data:\n", structured)
