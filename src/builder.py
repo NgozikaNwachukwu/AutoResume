@@ -132,6 +132,7 @@ def build_resume(raw: dict) -> dict:
     """
     Turn raw input from questions.py into structured, bullet-ready data for the PDF.
     """
+    print("running build_resume")
     structured = {
         "contact": raw.get("contact", {}),
         "education": raw.get("education", []),
@@ -175,3 +176,11 @@ def build_resume(raw: dict) -> dict:
         })
 
     return structured
+    if __name__ == "__main__":
+        test_text = "I led a team of 5 engineers to build a secure login system in Python using Flask and JWT tokens."
+    print("Original Summary:\n", test_text)
+    bullet_points = build_resume(test_text)
+    print("\nGenerated Bullet Points:")
+    for point in bullet_points:
+        print("- " + point)
+
