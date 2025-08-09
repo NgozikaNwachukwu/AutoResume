@@ -177,3 +177,7 @@ if __name__ == "__main__":
     from src.builder import build_resume
     structured = build_resume(data)
     print("\nStructured resume data:\n", structured)
+
+    from src.pdf_generator import build_pdf
+    pdf_path = build_pdf(structured, filename="AutoResume.pdf")
+    print(f"\nPDF created: {pdf_path}")
