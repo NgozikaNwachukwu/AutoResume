@@ -201,6 +201,7 @@ def build_resume(raw: dict) -> dict:
         })
 
     return structured
+
 if __name__ == "__main__":
     test_text = "I led a team of 5 engineers to build a secure login system in Python using Flask and JWT tokens."
     print("Original Summary:\n", test_text)
