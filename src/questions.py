@@ -1,5 +1,6 @@
 import re
 
+
 # ---------- Helper Functions ----------
 def not_empty(prompt):
     while True:
@@ -169,11 +170,12 @@ def collect_all_input():
         "skills": skill_info(),
         "extracurriculars": extra_curriculars()
     }
+    build_resume(resume_data)
 
 # ---------- Main Runner ----------
 if __name__ == "__main__":
     data = collect_all_input()
 
-    from src.builder import build_resume
+    from builder import build_resume
     structured = build_resume(data)
     print("\nStructured resume data:\n", structured)
