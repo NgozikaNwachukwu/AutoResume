@@ -4,15 +4,32 @@ import re
 import nltk
 
 # Download NLTK resources once (safe to leave in here)
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
+#try:
+    #nltk.data.find('tokenizers/punkt')
+#except LookupError:
+    #nltk.download('punkt')
 
-try:
-    nltk.data.find('taggers/averaged_perceptron_tagger')
-except LookupError:
-    nltk.download('averaged_perceptron_tagger')
+#try:
+    #nltk.data.find('taggers/averaged_perceptron_tagger')
+#except LookupError:
+    #nltk.download('averaged_perceptron_tagger')
+    
+
+# Auto-download required NLTK resources if missing (first run only)
+def _ensure_nltk_data():
+    required = {
+        "tokenizers": ["punkt", "punkt_tab"],
+        "taggers": ["averaged_perceptron_tagger"],
+    }
+    for subdir, packages in required.items():
+        for pkg in packages:
+            try:
+                nltk.data.find(f"{subdir}/{pkg}")
+            except LookupError:
+                nltk.download(pkg)
+
+_ensure_nltk_data()
+
 
 
 # =========================
