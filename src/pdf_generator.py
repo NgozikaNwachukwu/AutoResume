@@ -1,3 +1,11 @@
+# Auto-install reportlab if missing
+try:
+    from reportlab.lib.pagesizes import LETTER
+except ModuleNotFoundError:
+    import os
+    os.system("pip install reportlab")
+    from reportlab.lib.pagesizes import LETTER
+
 # pdf_generator.py
 from reportlab.lib.pagesizes import LETTER
 from reportlab.platypus import (

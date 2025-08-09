@@ -1,3 +1,11 @@
+# Auto-install nltk if missing
+try:
+    import nltk
+except ModuleNotFoundError:
+    import os
+    os.system("pip install nltk")
+    import nltk
+
 # src/builder.py
 
 import re
@@ -193,8 +201,8 @@ def build_resume(raw: dict) -> dict:
         })
 
     return structured
-    if __name__ == "__main__":
-        test_text = "I led a team of 5 engineers to build a secure login system in Python using Flask and JWT tokens."
+if __name__ == "__main__":
+    test_text = "I led a team of 5 engineers to build a secure login system in Python using Flask and JWT tokens."
     print("Original Summary:\n", test_text)
     bullet_points = build_resume(test_text)
     print("\nGenerated Bullet Points:")
