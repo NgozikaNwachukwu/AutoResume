@@ -1,32 +1,23 @@
+# ======================
+# src/builder.py
+# ======================
+
 # --- deps: auto-install + data check ---
-# Auto-install nltk if missing
+# Auto-install nltk if missing (safer subprocess form)
 try:
     import nltk
 except ModuleNotFoundError:
+    # CHANGE: prefer subprocess over os.system (more reliable, cross-platform)
     import subprocess, sys
     subprocess.check_call([sys.executable, "-m", "pip", "install", "nltk"])
     import nltk
 
 import re
-import nltk
-
-
-# Download NLTK resources once (safe to leave in here)
-#try:
-    #nltk.data.find('tokenizers/punkt')
-#except LookupError:
-    #nltk.download('punkt')
-
-#try:
-    #nltk.data.find('taggers/averaged_perceptron_tagger')
-#except LookupError:
-    #nltk.download('averaged_perceptron_tagger')
-    
 
 # Auto-download required NLTK resources if missing (first run only)
 def _ensure_nltk_data():
     required = {
-        "tokenizers": ["punkt", "punkt_tab"],
+        "tokenizers": ["punkt", "punkt_tab"],               # CHANGE: include punkt_tab (newer NLTK needs it)
         "taggers": ["averaged_perceptron_tagger"],
     }
     for subdir, packages in required.items():
@@ -41,22 +32,32 @@ _ensure_nltk_data()
 # =========================
 # Phase 2: Rewrite helpers
 # =========================
+
+# Strong verbs to anchor bullet openings/promotions
 ACTION_VERBS = {
     "built","created","developed","implemented","designed","automated","tested",
     "led","migrated","optimized","configured","fixed","integrated","deployed",
-    "refactored","improved","reduced","increased","coordinated","collaborated"
+    "refactored","improved","reduced","increased","coordinated","collaborated",
+    "managed","launched","delivered","orchestrated","owned","enhanced"
 }
+
+# CHANGE: expand weak intros we strip out
 WEAK_PREFIXES = [
-    r"i\s+(was\s+)?(responsible\s+for|tasked\s+with)\s+",
+    r"i\s+(was\s+)?(responsible\s+for|tasked\s+with|tasked\s+to)\s+",
     r"i\s+(helped|assisted)\s+to\s+",
     r"i\s+(helped|assisted)\s+",
-    r"we\s+",
+    r"\bwe\s+",
     r"my role (was|included)\s+",
+    r"\bi\s+was\s+in\s+charge\s+of\s+",
 ]
+
+# CHANGE: add more passive→active normalizations
 PASSIVE_TO_ACTIVE = [
-    (r"\bwas\b\s+(tested|built|created|developed|implemented|designed)\b", r"\1"),
-    (r"\bwere\b\s+(tested|built|created|developed|implemented|designed)\b", r"\1"),
+    (r"\bwas\b\s+(tested|built|created|developed|implemented|designed|managed)\b", r"\1"),
+    (r"\bwere\b\s+(tested|built|created|developed|implemented|designed|managed)\b", r"\1"),
 ]
+
+# Detect a trailing tech/tools clause (“using/with/in/via/through …”)
 TECH_SPLIT = r"(?:using|with|in|via|through)\s+(.+)$"
 
 def _clean_sentence(s: str) -> str:
@@ -66,28 +67,71 @@ def _clean_sentence(s: str) -> str:
     return s
 
 def _capitalize_tech(s: str) -> str:
+    # light normalization for common tech names
     tech = []
     for t in re.split(r"\s*,\s*|\s+and\s+", s):
         t = t.strip()
-        if t.lower() in {
+        tl = t.lower()
+        if tl in {
             "python","java","javascript","typescript","docker","kubernetes","git",
-            "github","flask","django","react","azure","aws","gcp","sql"
+            "github","flask","django","react","azure","aws","gcp","sql","jenkins",
+            "github actions","command line","cli"
         }:
-            tech.append(t.capitalize())
+            # CHANGE: special-casing a few multi-word tech labels
+            if tl == "github actions":
+                tech.append("GitHub Actions")
+            elif tl == "command line" or tl == "cli":
+                tech.append("command line")
+            else:
+                tech.append(t.capitalize())
         else:
             tech.append(t)
-    return ", ".join(tech)
+    return ", ".join([x for x in tech if x])
 
 def _has_number(s: str) -> bool:
     return bool(re.search(r"\b\d+%?|\b\d+\b", s))
 
+# CHANGE: simple gerund→past converter for leading verbs (creating→created)
+def _gerund_to_past(word: str) -> str:
+    base = re.sub(r"ing$", "", word)
+    if not base:
+        return word
+    if base.endswith("y"):
+        return base[:-1] + "ied"
+    if base.endswith("e"):
+        return base + "d"
+    return base + "ed"
+
+# CHANGE: promote “(I/we) was/were tasked with|to <gerund> …” → “<Verb-ed> …”
+def _promote_tasked_phrases(s: str) -> str:
+    # remove explicit “I/We was|were tasked …”
+    s = re.sub(r"^(i|we)\s+(was|were)\s+tasked\s+(with|to)\s+", "", s, flags=re.I)
+    s = re.sub(r"^was\s+tasked\s+(with|to)\s+", "", s, flags=re.I)
+    # convert initial gerund to past (“creating …” → “Created …”)
+    m = re.match(r"^([a-z]+)ing\b(.*)$", s, flags=re.I)
+    if m:
+        first = _gerund_to_past(m.group(1)).capitalize()
+        rest = m.group(2)
+        s = f"{first}{rest}"
+    return s
+
+# CHANGE: collapse repeated gerunds (“…, managing …, managing …” → “…, managing … and …”)
+def _dedupe_repeated_gerunds(s: str) -> str:
+    s = re.sub(r"\b,\s*managing\b\s+", " and ", s, flags=re.I)
+    s = re.sub(r"\b,\s*creating\b\s+", " and ", s, flags=re.I)
+    return s
+
 def _strong_opening(s: str) -> str:
     s = s.strip()
+    s = _promote_tasked_phrases(s)            # CHANGE: handle “was tasked …”
     s = re.sub(r"^(i|we)\s+", "", s, flags=re.I)
     for pat in WEAK_PREFIXES:
         s = re.sub(pat, "", s, flags=re.I)
     for pat, rep in PASSIVE_TO_ACTIVE:
         s = re.sub(pat, rep, s, flags=re.I)
+    s = _dedupe_repeated_gerunds(s)           # CHANGE: clean repeated gerunds
+
+    # Promote an action verb to the front if first word is weak
     words = s.split()
     if words:
         first = words[0].lower()
@@ -100,6 +144,7 @@ def _strong_opening(s: str) -> str:
                 ).strip()
     return s[0:1].upper() + s[1:] if s else s
 
+# CHANGE: main rewriter now *removes* the old metric placeholder – no more “(+ impact: add metric)”
 def rewrite_to_resume_bullets(summary: str) -> list[str]:
     """Turn raw multi-sentence text into polished resume bullets."""
     from nltk.tokenize import sent_tokenize
@@ -109,7 +154,7 @@ def rewrite_to_resume_bullets(summary: str) -> list[str]:
         if not sent:
             continue
 
-        # extract tools/tech at the end (after 'using/with/in/via/through ...')
+        # Extract trailing tools/tech (“using/with/in/via/through …”)
         tech = None
         m = re.search(TECH_SPLIT, sent, flags=re.I)
         if m:
@@ -118,17 +163,14 @@ def rewrite_to_resume_bullets(summary: str) -> list[str]:
 
         sent = _strong_opening(sent)
 
+        # Build final bullet text (no metric placeholder)
         core = sent
         if tech:
             core = f"{core} using {tech}"
 
-        # add a gentle metric placeholder only if no numbers present
-        if not _has_number(core):
-            core = f"{core} (+ impact: add metric)"
+        bullets.append("• " + core.rstrip(".") + ".")
 
-        bullets.append("• " + core + ".")
-
-    # de-dup and cap at 4 bullets
+    # De-dup and cap at 4 bullets
     seen, final = set(), []
     for b in bullets:
         k = b.lower()
@@ -163,49 +205,53 @@ def build_resume(raw: dict) -> dict:
             "title": exp.get("title", ""),
             "company": exp.get("company", ""),
             "location": exp.get("location", ""),
-            "dates": exp.get("dates", ""),
+            "dates": exp.get("dates", exp.get("date", "")),
             "bullets": bullets
         })
 
-    # Projects → rewrite bullets (XYZ-ish)
+    # Projects → rewrite bullets
     for proj in raw.get("projects", []):
         summary = (proj.pop("summary", "") or "").strip()
         bullets = rewrite_to_resume_bullets(summary) if summary else []
         structured["projects"].append({
             "title": proj.get("title", ""),
             "tools": proj.get("tools", ""),
-            "dates": proj.get("dates", ""),
+            "dates": proj.get("dates", proj.get("date", "")),
             "bullets": bullets
         })
 
     # Extracurriculars → rewrite bullets
     for ex in raw.get("extracurriculars", []):
-        # some of your data uses 'description' vs 'summary'
+        # support either 'description' or 'summary'
         summary = (ex.pop("description", "") or ex.pop("summary", "") or "").strip()
         bullets = rewrite_to_resume_bullets(summary) if summary else []
         structured["extracurriculars"].append({
             "title": ex.get("title", ""),
-            "dates": ex.get("dates", ""),
+            "dates": ex.get("dates", ex.get("date", "")),
             "bullets": bullets
         })
 
     return structured
 
-# --- dev-only test (optional) ---
+# --- dev-only quick test (optional) ---
 if __name__ == "__main__":
     sample = {
         "contact": {},
         "education": [],
         "skills": {},
         "experience": [
-            {"title":"QA Intern","company":"Crest","location":"Hybrid","dates":"Aug 2025 – Present",
-             "summary":"I was responsible for testing the program before deployment using Python and Git. I collaborated with devs to fix issues."}
+            {"title":"Webdev","company":"Gabson Official","location":"Abuja","dates":"May 2025 – Present",
+             "summary":"I was tasked with creating and managing the company's website."},
+            {"title":"Social Media Manager","company":"Dalema Supermarket","location":"Abuja/Kaduna","dates":"Jun 2025 – Present",
+             "summary":"I was tasked using creating the company's social media, managing online presence."},
         ],
         "projects": [
-            {"title":"AutoResume","tools":"Python, NLTK","dates":"2025","summary":"I built an auto resume tool in python and docker to help students."}
+            {"title":"AutoResume CLI","tools":"Python","dates":"Aug 2025 – Present",
+             "summary":"I was primarily tasked using testing the program at every step before deployment in python, command line."}
         ],
         "extracurriculars": [
-            {"title":"Women in Engineering","dates":"2024 – Present","description":"I organized events and mentored first-years in the club."}
+            {"title":"Hiclub","dates":"Nov 2021 – Aug 2022",
+             "description":"Co-founded the club, primarily using the mission to teach young girls, bring them into the tech space."}
         ]
     }
     out = build_resume(sample)
