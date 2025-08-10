@@ -1,27 +1,13 @@
+# --- deps: auto-install + data check ---
 # Auto-install nltk if missing
 try:
     import nltk
 except ModuleNotFoundError:
-    import os
-    os.system("pip install nltk")
+    import subprocess, sys
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "nltk"])
     import nltk
 
-# src/builder.py
-
 import re
-import nltk
-
-# Download NLTK resources once (safe to leave in here)
-#try:
-    #nltk.data.find('tokenizers/punkt')
-#except LookupError:
-    #nltk.download('punkt')
-
-#try:
-    #nltk.data.find('taggers/averaged_perceptron_tagger')
-#except LookupError:
-    #nltk.download('averaged_perceptron_tagger')
-    
 
 # Auto-download required NLTK resources if missing (first run only)
 def _ensure_nltk_data():
@@ -38,117 +24,106 @@ def _ensure_nltk_data():
 
 _ensure_nltk_data()
 
-
-
 # =========================
-# STAR Algorithm
+# Phase 2: Rewrite helpers
 # =========================
-SITUATION_KWS = {"faced", "during", "as part of", "legacy", "outdated", "bottleneck", "issue", "problem", "pain point", "context", "assigned"}
-TASK_KWS      = {"responsible", "tasked", "goal", "target", "deadline", "in charge", "ownership", "scope"}
-ACTION_KWS    = {"led", "built", "created", "developed", "implemented", "refactored", "designed", "tested", "automated",
-                 "integrated", "migrated", "optimized", "configured", "fixed", "collaborated", "coordinated", "deployed"}
-RESULT_KWS    = {"improved", "increased", "reduced", "decreased", "saved", "cut", "boosted", "achieved", "resulted",
-                 "grew", "accelerated", "faster", "lower", "%", "x", "kpi", "sla", "uptime"}
+ACTION_VERBS = {
+    "built","created","developed","implemented","designed","automated","tested",
+    "led","migrated","optimized","configured","fixed","integrated","deployed",
+    "refactored","improved","reduced","increased","coordinated","collaborated"
+}
+WEAK_PREFIXES = [
+    r"i\s+(was\s+)?(responsible\s+for|tasked\s+with)\s+",
+    r"i\s+(helped|assisted)\s+to\s+",
+    r"i\s+(helped|assisted)\s+",
+    r"we\s+",
+    r"my role (was|included)\s+",
+]
+PASSIVE_TO_ACTIVE = [
+    (r"\bwas\b\s+(tested|built|created|developed|implemented|designed)\b", r"\1"),
+    (r"\bwere\b\s+(tested|built|created|developed|implemented|designed)\b", r"\1"),
+]
+TECH_SPLIT = r"(?:using|with|in|via|through)\s+(.+)$"
 
-def _classify_sentence(sent: str) -> str:
-    s = sent.strip().lower()
-    if any(kw in s for kw in RESULT_KWS):    return "R"
-    if any(kw in s for kw in ACTION_KWS):    return "A"
-    if any(kw in s for kw in TASK_KWS):      return "T"
-    if any(kw in s for kw in SITUATION_KWS): return "S"
+def _clean_sentence(s: str) -> str:
+    s = s.strip()
+    s = re.sub(r"\s+", " ", s)
+    s = s.rstrip(".")
+    return s
 
-    # POS fallback
-    tokens = nltk.word_tokenize(sent)
-    if not tokens:
-        return "U"
-    pos = nltk.pos_tag(tokens)
-    if any(t.startswith("VB") for _, t in pos):  # verb
-        return "A"
-    if any(t.startswith("NN") for _, t in pos):  # noun
-        return "S"
-    return "U"
-
-def _clean_clause(s: str) -> str:
-    s = s.strip().rstrip(".")
-    if not s:
-        return s
-    return s[0].upper() + s[1:]
-
-def star_bullets_from_summary(summary: str, max_bullets: int = 4):
-    """Convert raw summary text into STAR-style bullet points."""
-    sentences = [x.strip() for x in re.split(r'(?<=[.!?])\s+|\n+', summary) if x.strip()]
-    if not sentences:
-        return []
-
-    # Classify sentences
-    buckets = {"S": [], "T": [], "A": [], "R": [], "U": []}
-    for sent in sentences:
-        tag = _classify_sentence(sent)
-        buckets[tag].append(sent)
-
-    bullets = []
-    used = set()
-
-    def take(bucket_key):
-        while buckets[bucket_key]:
-            cand = buckets[bucket_key].pop(0)
-            if cand not in used:
-                used.add(cand)
-                return cand
-        return None
-
-    for _ in range(max_bullets):
-        s_or_t = take("S") or take("T")
-        a1 = take("A")
-        r  = take("R")
-        a2 = take("A") if a1 and len(bullets) % 2 == 0 else None
-
-        if not (s_or_t or a1 or r):
-            break
-
-        parts = []
-        if s_or_t:
-            parts.append(_clean_clause(s_or_t))
-        if a1:
-            a_text = _clean_clause(a1) if not s_or_t else a1.strip().rstrip(".")
-            parts.append(("," if s_or_t else "") + f" {a_text}")
-        if a2:
-            parts.append(f" and {a2.strip().rstrip('.')}")
-        if r:
-            connector = " resulting in " if (s_or_t or a1 or a2) else ""
-            parts.append(connector + r.strip().rstrip("."))
-
-        line = "".join(parts).strip()
-        if not line.endswith("."):
-            line += "."
-        bullets.append(f"• {line}")
-
-    return bullets
-
-
-# =========================
-# XYZ Algorithm (Projects & Extracurriculars)
-# =========================
-def xyz_bullets_from_summary(summary: str, max_bullets: int = 3):
-    """
-    Convert raw summary into XYZ bullets:
-    - X = What you did
-    - Y = Measurable outcome
-    - Z = Context/tools
-    """
-    sents = [s.strip().rstrip(".") for s in re.split(r'(?<=[.!?])\s+|\n+', summary) if s.strip()]
-    bullets = []
-    for s in sents:
-        has_metric = any(tok in s.lower() for tok in ["%", "x", "increased", "reduced", "improved", "decreased", "saved"])
-        text = s[0].upper() + s[1:]
-        if has_metric:
-            bullets.append(f"• {text}.")
+def _capitalize_tech(s: str) -> str:
+    tech = []
+    for t in re.split(r"\s*,\s*|\s+and\s+", s):
+        t = t.strip()
+        if t.lower() in {
+            "python","java","javascript","typescript","docker","kubernetes","git",
+            "github","flask","django","react","azure","aws","gcp","sql"
+        }:
+            tech.append(t.capitalize())
         else:
-            bullets.append(f"• {text} (quantified where possible).")
-        if len(bullets) >= max_bullets:
-            break
-    return bullets or ["• Completed project work; quantified impact where possible."]
+            tech.append(t)
+    return ", ".join(tech)
 
+def _has_number(s: str) -> bool:
+    return bool(re.search(r"\b\d+%?|\b\d+\b", s))
+
+def _strong_opening(s: str) -> str:
+    s = s.strip()
+    s = re.sub(r"^(i|we)\s+", "", s, flags=re.I)
+    for pat in WEAK_PREFIXES:
+        s = re.sub(pat, "", s, flags=re.I)
+    for pat, rep in PASSIVE_TO_ACTIVE:
+        s = re.sub(pat, rep, s, flags=re.I)
+    words = s.split()
+    if words:
+        first = words[0].lower()
+        if first not in ACTION_VERBS:
+            m = re.search(r"\b(" + "|".join(ACTION_VERBS) + r")\b", s, flags=re.I)
+            if m:
+                verb = m.group(1)
+                s = verb.capitalize() + " " + re.sub(
+                    r".*?\b" + re.escape(verb) + r"\b", "", s, count=1, flags=re.I
+                ).strip()
+    return s[0:1].upper() + s[1:] if s else s
+
+def rewrite_to_resume_bullets(summary: str) -> list[str]:
+    """Turn raw multi-sentence text into polished resume bullets."""
+    from nltk.tokenize import sent_tokenize
+    bullets = []
+    for sent in sent_tokenize(summary or ""):
+        sent = _clean_sentence(sent)
+        if not sent:
+            continue
+
+        # extract tools/tech at the end (after 'using/with/in/via/through ...')
+        tech = None
+        m = re.search(TECH_SPLIT, sent, flags=re.I)
+        if m:
+            tech = _capitalize_tech(m.group(1))
+            sent = sent[:m.start()].strip()
+
+        sent = _strong_opening(sent)
+
+        core = sent
+        if tech:
+            core = f"{core} using {tech}"
+
+        # add a gentle metric placeholder only if no numbers present
+        if not _has_number(core):
+            core = f"{core} (+ impact: add metric)"
+
+        bullets.append("• " + core + ".")
+
+    # de-dup and cap at 4 bullets
+    seen, final = set(), []
+    for b in bullets:
+        k = b.lower()
+        if k not in seen:
+            seen.add(k)
+            final.append(b)
+        if len(final) == 4:
+            break
+    return final
 
 # =========================
 # Main builder function
@@ -157,7 +132,6 @@ def build_resume(raw: dict) -> dict:
     """
     Turn raw input from questions.py into structured, bullet-ready data for the PDF.
     """
-    print("running build_resume")
     structured = {
         "contact": raw.get("contact", {}),
         "education": raw.get("education", []),
@@ -167,10 +141,10 @@ def build_resume(raw: dict) -> dict:
         "extracurriculars": []
     }
 
-    # Experiences → STAR bullets
+    # Experiences → rewrite bullets
     for exp in raw.get("experience", []):
-        summary = exp.get("summary", "")
-        bullets = star_bullets_from_summary(summary, max_bullets=4)
+        summary = (exp.pop("summary", "") or "").strip()
+        bullets = rewrite_to_resume_bullets(summary) if summary else []
         structured["experience"].append({
             "title": exp.get("title", ""),
             "company": exp.get("company", ""),
@@ -179,10 +153,10 @@ def build_resume(raw: dict) -> dict:
             "bullets": bullets
         })
 
-    # Projects → XYZ bullets
+    # Projects → rewrite bullets (XYZ-ish)
     for proj in raw.get("projects", []):
-        summary = proj.get("summary", "")
-        bullets = xyz_bullets_from_summary(summary, max_bullets=3)
+        summary = (proj.pop("summary", "") or "").strip()
+        bullets = rewrite_to_resume_bullets(summary) if summary else []
         structured["projects"].append({
             "title": proj.get("title", ""),
             "tools": proj.get("tools", ""),
@@ -190,10 +164,11 @@ def build_resume(raw: dict) -> dict:
             "bullets": bullets
         })
 
-    # Extracurriculars → XYZ bullets
+    # Extracurriculars → rewrite bullets
     for ex in raw.get("extracurriculars", []):
-        summary = ex.get("summary", "")
-        bullets = xyz_bullets_from_summary(summary, max_bullets=2)
+        # some of your data uses 'description' vs 'summary'
+        summary = (ex.pop("description", "") or ex.pop("summary", "") or "").strip()
+        bullets = rewrite_to_resume_bullets(summary) if summary else []
         structured["extracurriculars"].append({
             "title": ex.get("title", ""),
             "dates": ex.get("dates", ""),
@@ -202,11 +177,23 @@ def build_resume(raw: dict) -> dict:
 
     return structured
 
+# --- dev-only test (optional) ---
 if __name__ == "__main__":
-    test_text = "I led a team of 5 engineers to build a secure login system in Python using Flask and JWT tokens."
-    print("Original Summary:\n", test_text)
-    bullet_points = build_resume(test_text)
-    print("\nGenerated Bullet Points:")
-    for point in bullet_points:
-        print("- " + point)
-
+    sample = {
+        "contact": {},
+        "education": [],
+        "skills": {},
+        "experience": [
+            {"title":"QA Intern","company":"Crest","location":"Hybrid","dates":"Aug 2025 – Present",
+             "summary":"I was responsible for testing the program before deployment using Python and Git. I collaborated with devs to fix issues."}
+        ],
+        "projects": [
+            {"title":"AutoResume","tools":"Python, NLTK","dates":"2025","summary":"I built an auto resume tool in python and docker to help students."}
+        ],
+        "extracurriculars": [
+            {"title":"Women in Engineering","dates":"2024 – Present","description":"I organized events and mentored first-years in the club."}
+        ]
+    }
+    out = build_resume(sample)
+    from pprint import pprint
+    pprint(out)
