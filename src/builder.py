@@ -3,7 +3,6 @@
 # ======================
 
 # --- deps: auto-install + data check ---
-# Auto-install nltk if missing (safer subprocess form)
 try:
     import nltk
 except ModuleNotFoundError:
@@ -14,10 +13,9 @@ except ModuleNotFoundError:
 import re
 import copy
 
-# Auto-download required NLTK resources if missing (first run only)
 def _ensure_nltk_data():
     required = {
-        "tokenizers": ["punkt", "punkt_tab"],  # include punkt_tab for newer NLTK
+        "tokenizers": ["punkt", "punkt_tab"],   # punkt_tab for newer NLTK
         "taggers": ["averaged_perceptron_tagger"],
     }
     for subdir, packages in required.items():
@@ -33,36 +31,44 @@ _ensure_nltk_data()
 # Rewrite helpers
 # =========================
 
-# Strong verbs to anchor bullet openings/promotions
 ACTION_VERBS = {
     "built","created","developed","implemented","designed","automated","tested",
     "led","migrated","optimized","configured","fixed","integrated","deployed",
     "refactored","improved","reduced","increased","coordinated","collaborated",
     "managed","launched","delivered","orchestrated","owned","enhanced",
-    # NEW (so we don't drop good openings like "Collected ...")
     "collected","analyzed","maintained","monitored","supported","documented","validated"
 }
 
-# Weak intros to strip
 WEAK_PREFIXES = [
     r"i\s+(was\s+)?(responsible\s+for|tasked\s+with|tasked\s+to)\s+",
+    r"(?:was|were)\s+responsible\s+for\s+",          # handles "Was responsible for ..."
     r"i\s+(helped|assisted)\s+to\s+",
     r"i\s+(helped|assisted)\s+",
     r"\bwe\s+",
     r"my role (was|included)\s+",
     r"\bi\s+was\s+in\s+charge\s+of\s+",
-    # NEW: handle "Was responsible for ..." with no pronoun
-    r"^(was|were)\s+responsible\s+for\s+",
 ]
 
-# Passive → active light normalizations
 PASSIVE_TO_ACTIVE = [
     (r"\bwas\b\s+(tested|built|created|developed|implemented|designed|managed)\b", r"\1"),
     (r"\bwere\b\s+(tested|built|created|developed|implemented|designed|managed)\b", r"\1"),
 ]
 
-# Detect trailing tech/tools clause (“using/with/in/via/through …”)
 TECH_SPLIT = r"(?:using|with|in|via|through)\s+(.+)$"
+
+_TECH_MAP = {
+    "python":"Python","java":"Java","javascript":"JavaScript","typescript":"TypeScript",
+    "docker":"Docker","kubernetes":"Kubernetes","git":"Git","github":"GitHub",
+    "flask":"Flask","django":"Django","react":"React","azure":"Azure","aws":"AWS","gcp":"GCP",
+    "sql":"SQL","mysql":"MySQL","jenkins":"Jenkins","pandas":"Pandas","numpy":"NumPy",
+    "pytest":"pytest","selenium":"Selenium","html":"HTML","css":"CSS","github actions":"GitHub Actions",
+    "cli":"command line","command line":"command line"
+}
+
+def _normalize_tech_in_text(s: str) -> str:
+    for k, v in _TECH_MAP.items():
+        s = re.sub(rf"\b{re.escape(k)}\b", v, s, flags=re.I)
+    return s
 
 def _clean_sentence(s: str) -> str:
     s = s.strip()
@@ -71,33 +77,14 @@ def _clean_sentence(s: str) -> str:
     return s
 
 def _capitalize_tech(s: str) -> str:
-    # light normalization for common tech names
     tech = []
     for t in re.split(r"\s*,\s*|\s+and\s+", s):
         t = t.strip()
         if not t:
             continue
-        tl = t.lower()
-        if tl in {
-            "python","java","javascript","typescript","docker","kubernetes","git",
-            "github","flask","django","react","azure","aws","gcp","sql","jenkins",
-            "github actions","command line","cli","pandas","numpy","pytest","selenium"
-        }:
-            # special-casing a few multi-word tech labels
-            if tl == "github actions":
-                tech.append("GitHub Actions")
-            elif tl in {"command line","cli"}:
-                tech.append("command line")
-            else:
-                tech.append(t.capitalize())
-        else:
-            tech.append(t)
+        tech.append(_TECH_MAP.get(t.lower(), t.capitalize() if len(t) > 1 else t))
     return ", ".join([x for x in tech if x])
 
-def _has_number(s: str) -> bool:
-    return bool(re.search(r"\b\d+%?|\b\d+\b", s))
-
-# gerund→past (creating→created)
 def _gerund_to_past(word: str) -> str:
     base = re.sub(r"ing$", "", word)
     if not base:
@@ -108,7 +95,6 @@ def _gerund_to_past(word: str) -> str:
         return base + "d"
     return base + "ed"
 
-# promote “(I/We) was/were tasked with|to <gerund> …” → “<Verb-ed> …”
 def _promote_tasked_phrases(s: str) -> str:
     s = re.sub(r"^(i|we)\s+(was|were)\s+tasked\s+(with|to)\s+", "", s, flags=re.I)
     s = re.sub(r"^was\s+tasked\s+(with|to)\s+", "", s, flags=re.I)
@@ -119,7 +105,6 @@ def _promote_tasked_phrases(s: str) -> str:
         s = f"{first}{rest}"
     return s
 
-# collapse repeated gerunds (“…, managing …, managing …” → “…, managing … and …”)
 def _dedupe_repeated_gerunds(s: str) -> str:
     s = re.sub(r"\b,\s*managing\b\s+", " and ", s, flags=re.I)
     s = re.sub(r"\b,\s*creating\b\s+", " and ", s, flags=re.I)
@@ -128,49 +113,33 @@ def _dedupe_repeated_gerunds(s: str) -> str:
 def _strong_opening(s: str) -> str:
     s = s.strip()
     s = _promote_tasked_phrases(s)
-
-    # NEW: drop naked auxiliaries at start (e.g., “Was creating …” → “creating …”)
-    s = re.sub(r"^(was|were)\s+", "", s, flags=re.I)
-
-    # strip pronouns
-    s = re.sub(r"^(i|we)\s+", "", s, flags=re.I)
-
-    # strip weak prefixes
+    s = re.sub(r"^(was|were)\s+", "", s, flags=re.I)  # drop naked auxiliaries
+    s = re.sub(r"^(i|we)\s+", "", s, flags=re.I)      # drop pronouns
     for pat in WEAK_PREFIXES:
         s = re.sub(pat, "", s, flags=re.I)
-
-    # passive → active
     for pat, rep in PASSIVE_TO_ACTIVE:
         s = re.sub(pat, rep, s, flags=re.I)
-
     s = _dedupe_repeated_gerunds(s)
 
-    # If we now start with a gerund, convert to past (“creating”→“Created”)
-    m = re.match(r"^([A-Za-z]+)ing\b(.*)$", s)
+    m = re.match(r"^([A-Za-z]+)ing\b(.*)$", s)        # creating → Created
     if m:
         s = _gerund_to_past(m.group(1)).capitalize() + m.group(2)
 
-    # Promote the FIRST action verb that appears in the sentence
     words = s.split()
-    if words:
-        first = words[0].lower()
-        if first not in ACTION_VERBS:
-            m = re.search(r"\b(" + "|".join(ACTION_VERBS) + r")\b", s, flags=re.I)
-            if m:
-                verb = m.group(1)
-                # move earliest action verb to the front, keep the rest
-                s = verb.capitalize() + " " + re.sub(
-                    r".*?\b" + re.escape(verb) + r"\b", "", s, count=1, flags=re.I
-                ).strip()
+    if words and words[0].lower() not in ACTION_VERBS:
+        m = re.search(r"\b(" + "|".join(ACTION_VERBS) + r")\b", s, flags=re.I)
+        if m:
+            verb = m.group(1)
+            s = verb.capitalize() + " " + re.sub(
+                r".*?\b" + re.escape(verb) + r"\b", "", s, count=1, flags=re.I
+            ).strip()
 
-    # NEW: fallback — force verb-led bullet if nothing matched
     if not re.match(r"^(" + "|".join(ACTION_VERBS) + r")\b", s, flags=re.I):
         s = "Delivered " + s
 
-    # Final: ensure initial capital
     return s[0:1].upper() + s[1:] if s else s
 
-# generic fallback (kept for dev/testing)
+# (kept for dev/testing if you want it elsewhere)
 def rewrite_to_resume_bullets(summary: str) -> list[str]:
     from nltk.tokenize import sent_tokenize
     bullets = []
@@ -185,16 +154,14 @@ def rewrite_to_resume_bullets(summary: str) -> list[str]:
             sent = sent[:m.start()].strip()
         sent = _strong_opening(sent)
         core = sent + (f" using {tech}" if tech else "")
-        bullets.append("• " + core.rstrip(".") + ".")
-    # dedupe and cap at 4
+        b = "• " + core.rstrip(".") + "."
+        bullets.append(_normalize_tech_in_text(b))
     seen, final = set(), []
     for b in bullets:
         k = b.lower()
         if k not in seen:
-            seen.add(k)
-            final.append(b)
-        if len(final) == 4:
-            break
+            seen.add(k); final.append(b)
+        if len(final) == 4: break
     return final
 
 # =========================
@@ -210,8 +177,19 @@ _RESULT_PHRASES = [
     "supporting on-time delivery",
 ]
 
+def _pick_impact(text: str) -> str:
+    t = (text or "").lower()
+    if any(w in t for w in ["test","qa","pytest","selenium","coverage","unit"]):
+        return "increasing test coverage"
+    if any(w in t for w in ["website","page","ui","ux","portfolio"]):
+        return "enhancing usability"
+    if "social" in t or "engagement" in t or "content" in t:
+        return "improving audience engagement"
+    if any(w in t for w in ["pipeline","deploy","github actions","jenkins","automation","cli","script"]):
+        return "reducing manual effort"
+    return "improving reliability"
+
 def _tools_phrase_for(val):
-    # expects str or list; returns ' using X, Y' or ''
     if not val:
         return ""
     if isinstance(val, str):
@@ -221,56 +199,54 @@ def _tools_phrase_for(val):
     return f" using {cleaned}" if cleaned else ""
 
 def make_star_bullets(summary: str, role: str = "", org: str = "", tools=None) -> list[str]:
-    """
-    STAR-ish (3 bullets): Situation/Task, Action, Result.
-    Rule-based, never fabricates numbers.
-    """
     from nltk.tokenize import sent_tokenize
     sents = [_clean_sentence(s) for s in sent_tokenize(summary or "") if _clean_sentence(s)]
     joined = " ".join(sents)
 
-    # Bullet 1 — Situation/Task
     task = sents[0] if sents else (role or "key responsibilities")
-    b1 = _strong_opening(task)
-    b1 = "• " + b1.rstrip(".") + "."
-
-    # Bullet 2 — Action (with tools)
+    b1 = "• " + _normalize_tech_in_text(_strong_opening(task).rstrip(".") + ".")
     action = sents[1] if len(sents) > 1 else "Implemented improvements"
-    b2 = _strong_opening(action) + _tools_phrase_for(tools)
-    b2 = "• " + b2.rstrip(".") + "."
-
-    # Bullet 3 — Result (generic but honest)
-    res = _RESULT_PHRASES[len(joined) % len(_RESULT_PHRASES)]
-    b3 = "• " + ("Delivered measurable outcomes by " + res).rstrip(".") + "."
-
+    b2_core = _strong_opening(action) + _tools_phrase_for(tools)
+    b2 = "• " + _normalize_tech_in_text(b2_core.rstrip(".") + ".")
+    res = _pick_impact(joined + " " + (tools or ""))
+    b3 = "• " + _normalize_tech_in_text(("Delivered measurable outcomes by " + res).rstrip(".") + ".")
     return [b1, b2, b3]
 
 def make_xyz_bullets(summary: str, tools=None, max_bullets: int = 2) -> list[str]:
-    """
-    XYZ: Delivered X (what) by doing Z (how){ using tools}, improving Y (impact).
-    1–2 concise bullets.
-    """
     from nltk.tokenize import sent_tokenize
     sents = [_clean_sentence(s) for s in sent_tokenize(summary or "") if _clean_sentence(s)]
     if not sents:
         return []
 
-    what = sents[0]
-    how  = sents[1] if len(sents) > 1 else "implementing core features and tests"
-    impact = _RESULT_PHRASES[len(what) % len(_RESULT_PHRASES)]
+    what = _strong_opening(sents[0])
+    how  = _strong_opening(sents[1]) if len(sents) > 1 else "implementing core features and tests"
+    how  = re.sub(r"^(?:by\s+)", "", how, flags=re.I)  # avoid "by by"
+    impact = _pick_impact(what + " " + how)
 
-    b1 = f"• Delivered {what} by {how}{_tools_phrase_for(tools)}, {impact}."
-    bullets = [b1]
+    b1 = f"• {what} by {how}{_tools_phrase_for(tools)}, {impact}."
+    bullets = [_normalize_tech_in_text(b1)]
 
-    # Optional detail bullet from remaining sentences
     for d in sents[2:][:max(0, max_bullets - 1)]:
-        bullets.append("• Documented and validated " + _strong_opening(d).rstrip(".") + ".")
+        bullets.append(_normalize_tech_in_text("• " + _strong_opening(d).rstrip(".") + "."))
 
     return bullets[:max_bullets]
 
 # =========================
+# Utilities
+# =========================
+
+def _normalize_date_range(s: str) -> str:
+    if not s:
+        return s
+    s = re.sub(r"\s*,\s*", " ", s)                         # "Jun,2025" -> "Jun 2025"
+    s = re.sub(r"\s*[-–—]\s*", " – ", s)                   # normalize dash to en dash
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+# =========================
 # Main builder function
 # =========================
+
 def build_resume(raw: dict) -> dict:
     """
     Turn raw input from questions.py into structured, bullet-ready data for the PDF.
@@ -289,7 +265,6 @@ def build_resume(raw: dict) -> dict:
 
     # --- Experiences → STAR ---
     for exp in raw.get("experience", []):
-        # Accept either 'summary' or a list of 'bullets' typed by the user
         source_text = " ".join(exp.get("bullets", [])) or exp.get("summary", "") or ""
         bullets = make_star_bullets(
             source_text,
@@ -302,8 +277,8 @@ def build_resume(raw: dict) -> dict:
             "title": exp.get("title", ""),
             "company": exp.get("company", ""),
             "location": exp.get("location", ""),
-            "dates": exp.get("dates", exp.get("date", "")),
-            "bullets": bullets[:3]   # cap at 3
+            "dates": _normalize_date_range(exp.get("dates", exp.get("date", ""))),
+            "bullets": bullets[:3]
         })
 
     # --- Projects → XYZ ---
@@ -314,23 +289,25 @@ def build_resume(raw: dict) -> dict:
         structured["projects"].append({
             "title": proj.get("title", ""),
             "tools": proj.get("tools", ""),
-            "dates": proj.get("dates", proj.get("date", "")),
-            "bullets": bullets[:2]  # cap at 2
+            "dates": _normalize_date_range(proj.get("dates", proj.get("date", ""))),
+            "bullets": bullets[:2]
         })
 
     # --- Extracurriculars → XYZ ---
     for ex in raw.get("extracurriculars", []):
         source_text = (
             " ".join(ex.get("bullets", []))
-            or ex.get("summary", "")
-            or ex.get("description", "")
-            or ex.get("title","")
+            | ex.get("summary", "")
+            | ex.get("description", "")
+            | ex.get("title","")
+        ) if False else (
+            " ".join(ex.get("bullets", [])) or ex.get("summary", "") or ex.get("description", "") or ex.get("title","")
         )
         bullets = make_xyz_bullets(source_text, tools=None) if source_text else []
 
         structured["extracurriculars"].append({
             "title": ex.get("title", ""),
-            "dates": ex.get("dates", ex.get("date", "")),
+            "dates": _normalize_date_range(ex.get("dates", ex.get("date", ""))),
             "bullets": bullets[:2]
         })
 
