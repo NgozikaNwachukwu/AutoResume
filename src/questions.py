@@ -1,4 +1,6 @@
 import re
+from builder import build_resume
+from pdf_generator import build_pdf
 
 
 # ---------- Helper Functions ----------
@@ -36,6 +38,7 @@ def yes_no(prompt):
         if response in ["yes", "no"]:
             return response
         print("Please answer with 'yes' or 'no'.")
+
 
 # ---------- Section Functions ----------
 def contact_info():
@@ -160,6 +163,7 @@ def extra_curriculars():
                 break
     return extracurriculars
 
+
 # ---------- New Bundler Function ----------
 def collect_all_input():
     return {
@@ -170,16 +174,20 @@ def collect_all_input():
         "skills": skill_info(),
         "extracurriculars": extra_curriculars()
     }
-    build_resume(resume_data)
+    # (removed unreachable build_resume(resume_data) call)
+
 
 # ---------- Main Runner ----------
 if __name__ == "__main__":
-    data = collect_all_input()
+    # 1) Gather raw inputs
+    raw = collect_all_input()
 
-    from builder import build_resume
-    structured = build_resume(data)
-    print("\nStructured resume data:\n", structured)
+    # 2) Transform to bullet-ready (Experience→STAR, Projects/Extracurriculars→XYZ)
+    structured = build_resume(raw)
 
-    from pdf_generator import build_pdf
+    # (Optional) Preview in console
+    print("\nTransformed (STAR/XYZ) resume data:\n", structured)
+
+    # 3) Build the PDF from transformed data
     pdf_path = build_pdf(structured, filename="AutoResume.pdf")
     print(f"\nPDF created: {pdf_path}")
