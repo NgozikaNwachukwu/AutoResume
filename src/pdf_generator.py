@@ -142,12 +142,25 @@ def build_pdf(structured: dict, filename: str = "AutoResume.pdf"):
             degree = (ed.get("degree") or "").strip()
             loc = (ed.get("location") or "").strip()
             dates = (ed.get("date") or ed.get("dates") or "").strip()
-
             # Row 1: School (bold) | Location (right)
+    #story.append(_two_col_row(school, loc, S))
+
+# Get GPA (check both uppercase and lowercase keys just in case)
+            gpa = ed.get("GPA") or ed.get("gpa")
+            if gpa:
+                degree = f"{degree} — GPA: {gpa}"
+
+# Row 2: Degree (italic) | Dates (right)
             story.append(_two_col_row(school, loc, S))
-            # Row 2: Degree (italic) | Dates (right)
             story.append(_subrow(degree, dates, S))
             story.append(Spacer(1, 6))
+
+
+            # Row 1: School (bold) | Location (right)
+    #story.append(_two_col_row(school, loc, S))
+            # Row 2: Degree (italic) | Dates (right)
+            #story.append(_subrow(degree, dates, S))
+           # story.append(Spacer(1, 6))
 
     # EXPERIENCE
     exp = structured.get("experience", [])
@@ -168,7 +181,7 @@ def build_pdf(structured: dict, filename: str = "AutoResume.pdf"):
             bullets = e.get("bullets", [])
             if bullets:
                 story.append(_bullets(S, bullets))
-            story.append(Spacer(1, 6))
+                story.append(Spacer(1, 6))
 
     # PROJECTS
     projects = structured.get("projects", [])
