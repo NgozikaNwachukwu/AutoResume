@@ -38,7 +38,9 @@ ACTION_VERBS = {
     "built","created","developed","implemented","designed","automated","tested",
     "led","migrated","optimized","configured","fixed","integrated","deployed",
     "refactored","improved","reduced","increased","coordinated","collaborated",
-    "managed","launched","delivered","orchestrated","owned","enhanced"
+    "managed","launched","delivered","orchestrated","owned","enhanced",
+    # NEW (so we don't drop good openings like "Collected ...")
+    "collected","analyzed","maintained","monitored","supported","documented","validated"
 }
 
 # Weak intros to strip
@@ -49,6 +51,8 @@ WEAK_PREFIXES = [
     r"\bwe\s+",
     r"my role (was|included)\s+",
     r"\bi\s+was\s+in\s+charge\s+of\s+",
+    # NEW: handle "Was responsible for ..." with no pronoun
+    r"^(was|were)\s+responsible\s+for\s+",
 ]
 
 # Passive → active light normalizations
@@ -124,14 +128,29 @@ def _dedupe_repeated_gerunds(s: str) -> str:
 def _strong_opening(s: str) -> str:
     s = s.strip()
     s = _promote_tasked_phrases(s)
+
+    # NEW: drop naked auxiliaries at start (e.g., “Was creating …” → “creating …”)
+    s = re.sub(r"^(was|were)\s+", "", s, flags=re.I)
+
+    # strip pronouns
     s = re.sub(r"^(i|we)\s+", "", s, flags=re.I)
+
+    # strip weak prefixes
     for pat in WEAK_PREFIXES:
         s = re.sub(pat, "", s, flags=re.I)
+
+    # passive → active
     for pat, rep in PASSIVE_TO_ACTIVE:
         s = re.sub(pat, rep, s, flags=re.I)
+
     s = _dedupe_repeated_gerunds(s)
 
-    # Promote an action verb to the front if first word is weak
+    # If we now start with a gerund, convert to past (“creating”→“Created”)
+    m = re.match(r"^([A-Za-z]+)ing\b(.*)$", s)
+    if m:
+        s = _gerund_to_past(m.group(1)).capitalize() + m.group(2)
+
+    # Promote the FIRST action verb that appears in the sentence
     words = s.split()
     if words:
         first = words[0].lower()
@@ -139,9 +158,16 @@ def _strong_opening(s: str) -> str:
             m = re.search(r"\b(" + "|".join(ACTION_VERBS) + r")\b", s, flags=re.I)
             if m:
                 verb = m.group(1)
+                # move earliest action verb to the front, keep the rest
                 s = verb.capitalize() + " " + re.sub(
                     r".*?\b" + re.escape(verb) + r"\b", "", s, count=1, flags=re.I
                 ).strip()
+
+    # NEW: fallback — force verb-led bullet if nothing matched
+    if not re.match(r"^(" + "|".join(ACTION_VERBS) + r")\b", s, flags=re.I):
+        s = "Delivered " + s
+
+    # Final: ensure initial capital
     return s[0:1].upper() + s[1:] if s else s
 
 # generic fallback (kept for dev/testing)
@@ -311,26 +337,16 @@ def build_resume(raw: dict) -> dict:
     return structured
 
 # --- dev-only quick test (optional) ---
-#if __name__ == "__main__":
-    #sample = {
-        #"contact": {},
-        #"education": [],
-        #"skills": {},
-       # "experience": [
-            #{"title":"Web Developer","company":"Gabson Official","location":"Abuja","dates":"May 2025 – Present",
-           #  "summary":"I was tasked with creating and managing the company's website using Python and GitHub Actions. Collected user feedback and optimized pages."},
-           # {"title":"Social Media Manager","company":"Dalema Supermarket","location":"Abuja/Kaduna","dates":"Jun 2025 – Present",
-            # "summary":"Was tasked with creating the company's social media presence, managing online content, and reporting insights to management."},
-       # ],
-       # "projects": [
-         #   {"title":"AutoResume CLI","tools":"Python, command line","dates":"Aug 2025 – Present",
-          #  "summary":"Tested the program at every step before deployment. Built automated checks and reports."}
-       # ],
-       # "extracurriculars": [
-          #  {"title":"Hiclub","dates":"Nov 2021 – Aug 2022",
-          #   "summary":"Co-founded a club to teach young girls tech skills. Organized sessions and designed beginner-friendly materials."}
-      #  ]
-    #}
-    #out = build_resume(sample)
-    #from pprint import pprint
-    #pprint(out)
+# if __name__ == "__main__":
+#     sample = {
+#         "contact": {},
+#         "education": [],
+#         "skills": {},
+#         "experience": [
+#             {"title":"Web Developer","company":"Gabson Official","location":"Abuja","dates":"May 2025 – Present",
+#              "summary":"Was responsible for creating and managing the company's website using Python and GitHub Actions. Collected user feedback and optimized pages."},
+#         ],
+#     }
+#     out = build_resume(sample)
+#     from pprint import pprint
+#     pprint(out)
