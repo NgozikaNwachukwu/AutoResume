@@ -36,7 +36,8 @@ ACTION_VERBS = {
     "led","migrated","optimized","configured","fixed","integrated","deployed",
     "refactored","improved","reduced","increased","coordinated","collaborated",
     "managed","launched","delivered","orchestrated","owned","enhanced",
-    "collected","analyzed","maintained","monitored","supported","documented","validated"
+    "collected","analyzed","maintained","monitored","supported","documented","validated",
+    "taught","grew"
 }
 
 WEAK_PREFIXES = [
@@ -85,22 +86,30 @@ def _capitalize_tech(s: str) -> str:
         tech.append(_TECH_MAP.get(t.lower(), t.capitalize() if len(t) > 1 else t))
     return ", ".join([x for x in tech if x])
 
-def _gerund_to_past(word: str) -> str:
-    base = re.sub(r"ing$", "", word)
-    if not base:
-        return word
-    if base.endswith("y"):
-        return base[:-1] + "ied"
-    if base.endswith("e"):
-        return base + "d"
-    return base + "ed"
+# --- irregular past (fixes "Teached" -> "Taught") ---
+IRREGULAR_PAST = {
+    "teach":"taught","lead":"led","build":"built","make":"made","write":"wrote",
+    "run":"ran","grow":"grew","bring":"brought","buy":"bought","catch":"caught",
+    "think":"thought","seek":"sought","fight":"fought","sell":"sold","hold":"held",
+    "keep":"kept","leave":"left","meet":"met","pay":"paid","say":"said","see":"saw",
+    "take":"took","come":"came","go":"went"
+}
+def _to_past(word: str) -> str:
+    w = word.lower()
+    if w in IRREGULAR_PAST:
+        return IRREGULAR_PAST[w]
+    if w.endswith("y"):
+        return w[:-1] + "ied"
+    if w.endswith("e"):
+        return w + "d"
+    return w + "ed"
 
 def _promote_tasked_phrases(s: str) -> str:
     s = re.sub(r"^(i|we)\s+(was|were)\s+tasked\s+(with|to)\s+", "", s, flags=re.I)
     s = re.sub(r"^was\s+tasked\s+(with|to)\s+", "", s, flags=re.I)
     m = re.match(r"^([a-z]+)ing\b(.*)$", s, flags=re.I)
     if m:
-        first = _gerund_to_past(m.group(1)).capitalize()
+        first = _to_past(m.group(1)).capitalize()
         rest = m.group(2)
         s = f"{first}{rest}"
     return s
@@ -123,7 +132,7 @@ def _strong_opening(s: str) -> str:
 
     m = re.match(r"^([A-Za-z]+)ing\b(.*)$", s)        # creating → Created
     if m:
-        s = _gerund_to_past(m.group(1)).capitalize() + m.group(2)
+        s = _to_past(m.group(1)).capitalize() + m.group(2)
 
     words = s.split()
     if words and words[0].lower() not in ACTION_VERBS:
@@ -134,12 +143,13 @@ def _strong_opening(s: str) -> str:
                 r".*?\b" + re.escape(verb) + r"\b", "", s, count=1, flags=re.I
             ).strip()
 
+    # If we still didn't land on a verb-led opening, use a neutral "Delivered ..."
     if not re.match(r"^(" + "|".join(ACTION_VERBS) + r")\b", s, flags=re.I):
         s = "Delivered " + s
 
     return s[0:1].upper() + s[1:] if s else s
 
-# (kept for dev/testing if you want it elsewhere)
+# generic fallback (kept for dev/testing)
 def rewrite_to_resume_bullets(summary: str) -> list[str]:
     from nltk.tokenize import sent_tokenize
     bullets = []
@@ -156,6 +166,7 @@ def rewrite_to_resume_bullets(summary: str) -> list[str]:
         core = sent + (f" using {tech}" if tech else "")
         b = "• " + core.rstrip(".") + "."
         bullets.append(_normalize_tech_in_text(b))
+    # dedupe and cap
     seen, final = set(), []
     for b in bullets:
         k = b.lower()
@@ -218,9 +229,9 @@ def make_xyz_bullets(summary: str, tools=None, max_bullets: int = 2) -> list[str
     if not sents:
         return []
 
-    what = _strong_opening(sents[0])
+    what = _strong_opening(sents[0])                         # e.g., "Taught female students ..."
     how  = _strong_opening(sents[1]) if len(sents) > 1 else "implementing core features and tests"
-    how  = re.sub(r"^(?:by\s+)", "", how, flags=re.I)  # avoid "by by"
+    how  = re.sub(r"^(?:by\s+)", "", how, flags=re.I)        # avoid "by by"
     impact = _pick_impact(what + " " + how)
 
     b1 = f"• {what} by {how}{_tools_phrase_for(tools)}, {impact}."
@@ -238,8 +249,9 @@ def make_xyz_bullets(summary: str, tools=None, max_bullets: int = 2) -> list[str
 def _normalize_date_range(s: str) -> str:
     if not s:
         return s
-    s = re.sub(r"\s*,\s*", " ", s)                         # "Jun,2025" -> "Jun 2025"
-    s = re.sub(r"\s*[-–—]\s*", " – ", s)                   # normalize dash to en dash
+    s = re.sub(r"\s*,\s*", " ", s)               # "Jun,2025" -> "Jun 2025"
+    s = re.sub(r"\s*[-–—]\s*", " – ", s)         # normalize dash to en dash
+    s = re.sub(r"\bpresent\b", "Present", s, flags=re.I)
     s = re.sub(r"\s+", " ", s).strip()
     return s
 
@@ -297,11 +309,9 @@ def build_resume(raw: dict) -> dict:
     for ex in raw.get("extracurriculars", []):
         source_text = (
             " ".join(ex.get("bullets", []))
-            | ex.get("summary", "")
-            | ex.get("description", "")
-            | ex.get("title","")
-        ) if False else (
-            " ".join(ex.get("bullets", [])) or ex.get("summary", "") or ex.get("description", "") or ex.get("title","")
+            or ex.get("summary", "")
+            or ex.get("description", "")
+            or ex.get("title","")
         )
         bullets = make_xyz_bullets(source_text, tools=None) if source_text else []
 
