@@ -11,6 +11,7 @@ def not_empty(prompt):
             return value
         print("This field cannot be empty.")
 
+
 def valid_email():
     while True:
         email = input("Email address(e.g allydee2@gmail.com): ").strip()
@@ -18,12 +19,16 @@ def valid_email():
             return email
         print("Invalid email format. Try again.")
 
+
 def valid_phone():
     while True:
         phone = input("Phone number(e.g +16473807394): ").strip()
         if re.match(r"^\+?\d+$", phone):
             return phone
-        print("Invalid phone number. Only digits allowed (optionally starting with '+').")
+        print(
+            "Invalid phone number. Only digits allowed (optionally starting with '+')."
+        )
+
 
 def valid_url(prompt):
     while True:
@@ -31,6 +36,7 @@ def valid_url(prompt):
         if url == "" or re.match(r"^https?://[^\s]+$", url):
             return url
         print("Invalid URL. Try again.")
+
 
 def yes_no(prompt):
     while True:
@@ -60,6 +66,7 @@ def contact_info():
 
     return contact
 
+
 def education_info():
     print("\nLet's enter your education history:")
     education = []
@@ -70,7 +77,12 @@ def education_info():
         end_date = not_empty("End Date (or 'Present'): ")
         location = not_empty("School location(e.g Oshawa, ON): ")
         date_range = f"{start_date} - {end_date}"
-        entry = {"school": school, "degree": degree, "date": date_range, "location": location}
+        entry = {
+            "school": school,
+            "degree": degree,
+            "date": date_range,
+            "location": location,
+        }
 
         if yes_no("Would you like to include your GPA? (yes/no): ") == "yes":
             entry["GPA"] = not_empty("Enter your GPA (e.g 3.7): ")
@@ -79,6 +91,7 @@ def education_info():
         if yes_no("Would you like to add another education entry? (yes/no): ") == "no":
             break
     return education
+
 
 def experience_info():
     print("\nLet's enter your past experiences.")
@@ -91,16 +104,19 @@ def experience_info():
         end = not_empty("End Date (or 'Present'): ")
         summary = not_empty("Briefly describe your responsibilities/duties: ")
 
-        experiences.append({
-            "title": title,
-            "company": company,
-            "location": location,
-            "dates": f"{start} - {end}",
-            "summary": summary
-        })
+        experiences.append(
+            {
+                "title": title,
+                "company": company,
+                "location": location,
+                "dates": f"{start} - {end}",
+                "summary": summary,
+            }
+        )
         if yes_no("Would you like to add another experience? (yes/no): ") == "no":
             break
     return experiences
+
 
 def project_info():
     projects = []
@@ -110,17 +126,22 @@ def project_info():
             tools = not_empty("Tools & Technologies used(e.g Python, Java, etc): ")
             start = not_empty("Start Date (e.g. Feb 2025): ")
             end = not_empty("End Date (or 'Present'): ")
-            summary = not_empty("What did you do in the project?(describe what was done): ")
+            summary = not_empty(
+                "What did you do in the project?(describe what was done): "
+            )
 
-            projects.append({
-                "title": title,
-                "tools": tools,
-                "dates": f"{start} - {end}",
-                "summary": summary
-            })
+            projects.append(
+                {
+                    "title": title,
+                    "tools": tools,
+                    "dates": f"{start} - {end}",
+                    "summary": summary,
+                }
+            )
             if yes_no("Would you like to add another project? (yes/no): ") == "no":
                 break
     return projects
+
 
 def skill_info():
     print("\nLet's add your skills!\n")
@@ -128,7 +149,9 @@ def skill_info():
     while True:
         category = not_empty("Enter skill category (e.g., Languages, Frameworks): ")
         skills[category] = []
-        print(f"Enter skills for {category} tip, separate them by commas! eg: Python, Java, etc.(type 'done' when finished):")
+        print(
+            f"Enter skills for {category} tip, separate them by commas! eg: Python, Java, etc.(type 'done' when finished):"
+        )
         while True:
             skill = input(f"- {category}: ").strip()
             if skill.lower() == "done":
@@ -144,22 +167,29 @@ def skill_info():
             break
     return skills
 
+
 def extra_curriculars():
     extracurriculars = []
-    if yes_no("\nWould you like to add an extracurricular activity? (yes/no): ") == "yes":
+    if (
+        yes_no("\nWould you like to add an extracurricular activity? (yes/no): ")
+        == "yes"
+    ):
         while True:
             title = not_empty("Enter the title of the activity: ")
             start = not_empty("Start Date (e.g. Jan 2023): ")
             end = not_empty("End Date (or 'Present'): ")
             description = not_empty("Briefly describe the activity: ")
 
-            extracurriculars.append({
-                "title": title,
-                "dates": f"{start} - {end}",
-                "summary": description
-            })
+            extracurriculars.append(
+                {"title": title, "dates": f"{start} - {end}", "summary": description}
+            )
 
-            if yes_no("Would you like to add another extracurricular activity? (yes/no): ") == "no":
+            if (
+                yes_no(
+                    "Would you like to add another extracurricular activity? (yes/no): "
+                )
+                == "no"
+            ):
                 break
     return extracurriculars
 
@@ -172,7 +202,7 @@ def collect_all_input():
         "experience": experience_info(),
         "projects": project_info(),
         "skills": skill_info(),
-        "extracurriculars": extra_curriculars()
+        "extracurriculars": extra_curriculars(),
     }
     # (removed unreachable build_resume(resume_data) call)
 
