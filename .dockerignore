@@ -1,0 +1,10 @@
+.git
+.github
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+AutoResume.pdf
+.venv
+.env
+.DS_Store
