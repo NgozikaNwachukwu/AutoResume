@@ -2,6 +2,7 @@ from builder import build_resume
 from pdf_generator import build_pdf
 import os
 
+
 def test_build_pdf_writes_file(tmp_path, sample_raw):
     structured = build_resume(sample_raw)
     out = tmp_path / "Resume.pdf"
