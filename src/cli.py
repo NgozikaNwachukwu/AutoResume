@@ -7,8 +7,8 @@ import json
 import logging
 from pathlib import Path
 
-from builder import build_resume
-from pdf_generator import generate_pdf
+from src.builder import build_resume
+from src.pdf_generator import generate_pdf
 
 logger = logging.getLogger(__name__)
 
