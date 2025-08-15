@@ -1,16 +1,44 @@
-"""CLI to generate a resume PDF from JSON input."""
+"""CLI to generate a resume PDF from JSON input (robust import)."""
 
 from __future__ import annotations
 
 import argparse
+import importlib
+import inspect
 import json
 import logging
 from pathlib import Path
 
 from src.builder import build_resume
-from src.pdf_generator import generate_pdf
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_pdf_callable():
+    """
+    Find a callable in src.pdf_generator that can produce a PDF.
+    Tries common func names; falls back to PDFGenerator class.
+    """
+    mod = importlib.import_module("src.pdf_generator")
+
+    for name in ("generate_pdf", "create_pdf", "write_pdf", "build_pdf", "render_pdf"):
+        fn = getattr(mod, name, None)
+        if callable(fn):
+            return fn
+
+    cls = getattr(mod, "PDFGenerator", None)
+    if cls is not None:
+        inst = cls()
+        if callable(getattr(inst, "generate", None)):
+            return lambda resume, out: inst.generate(resume, out)
+        if callable(getattr(inst, "build", None)):
+            return lambda resume, out: inst.build(resume, out)
+
+    public = [n for n in dir(mod) if not n.startswith("_")]
+    raise RuntimeError(
+        "Could not find a PDF writer in src.pdf_generator. "
+        f"Tried common names and PDFGenerator. Available: {public}"
+    )
 
 
 def main() -> None:
@@ -26,8 +54,21 @@ def main() -> None:
         raw = json.load(fh)
 
     resume = build_resume(raw)
-    # If generate_pdf expects a string path, cast to str for safety.
-    generate_pdf(resume, str(output_path))
+    pdf_callable = _resolve_pdf_callable()
+
+    sig = inspect.signature(pdf_callable)
+    try:
+        if len(sig.parameters) >= 2:
+            pdf_callable(resume, str(output_path))
+        else:
+            pdf_bytes = pdf_callable(resume)
+            output_path.write_bytes(pdf_bytes)
+    except TypeError:
+        try:
+            pdf_callable(resume, str(output_path))
+        except TypeError:
+            pdf_bytes = pdf_callable(resume)
+            output_path.write_bytes(pdf_bytes)
 
     logger.info("Wrote %s", output_path)
 
