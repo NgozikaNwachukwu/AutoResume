@@ -15,7 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3         # multi-arch
+
+      # Enable cross-arch builds (needed for main when we build arm64 too)
+      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
@@ -28,13 +30,23 @@ jobs:
       - name: Set lowercase owner
         run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
 
+      # 👇 Build only amd64 on PRs (fast), build amd64+arm64 on main (multi-arch)
+      - name: Decide platforms
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "PLATFORMS=linux/amd64,linux/arm64" >> $GITHUB_ENV
+          else
+            echo "PLATFORMS=linux/amd64" >> $GITHUB_ENV
+          fi
+
       - name: Build (PR) / Build+Push (main) runtime image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.runtime
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-          platforms: linux/amd64,linux/arm64          # publish both
+          platforms: ${{ env.PLATFORMS }}
           tags: |
             ghcr.io/${{ env.OWNER }}/autoresume:${{ github.sha }}
             ghcr.io/${{ env.OWNER }}/autoresume:main
