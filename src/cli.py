@@ -1,4 +1,5 @@
 """CLI to generate a resume PDF from JSON input (robust import)."""
+
 from __future__ import annotations
 
 import argparse
