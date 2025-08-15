@@ -2,7 +2,8 @@
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app
 
 WORKDIR /app
 
@@ -16,19 +17,19 @@ COPY requirements.txt ./requirements.txt
 RUN python -m pip install --upgrade pip && \
     pip install -r requirements.txt
 
-# Pull NLTK data so runtime works offline
+# Preload NLTK data so runtime is offline-safe
 RUN python - <<'PY'
 import nltk
-try:
-    nltk.download("punkt", quiet=True)
-except Exception as e:
-    print("NLTK download warning:", e)
+for pkg in ("punkt", "punkt_tab", "averaged_perceptron_tagger"):
+    try:
+        nltk.download(pkg, quiet=True)
+    except Exception as e:
+        print("NLTK download warning for", pkg, "->", e)
 PY
 
 # App code
 COPY src ./src
 COPY pyproject.toml ./pyproject.toml
-# no extra COPY needed; imports use src.*
 
 # Default command can be overridden at run time
 CMD ["python", "-m", "src.cli", "--help"]
