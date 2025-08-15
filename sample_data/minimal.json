@@ -8,7 +8,7 @@
     { "title": "Intern web developer", "company": "Gabson Official", "location": "Abuja", "dates": "Aug 2025 – Present", "summary": "Worked with devs to build & manage the company website; improved usability and outcomes." }
   ],
   "projects": [
-    { "title": "AutoResume CLI", "tools": ["Python"], "dates": "Aug 2025 – Present", "summary": "Command-line tool to generate resume PDFs; added tests and CI." }
+    { "title": "AutoResume CLI", "tools": "Python", "dates": "Aug 2025 – Present", "summary": "Command-line tool to generate resume PDFs; added tests and CI." }
   ],
   "extracurriculars": [
     { "title": "HiTECH Club", "dates": "Nov 2021 – Aug 2022", "summary": "Co-founded; taught HTML/CSS; increased test coverage." }
