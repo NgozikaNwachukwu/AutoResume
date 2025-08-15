@@ -107,9 +107,12 @@ def _styles():
 
 # ---- Utilities ----
 def _hr():
-    # solid horizontal rule
     return HRFlowable(
-        width="100%", thickness=1, color=colors.black, spaceBefore=2, spaceAfter=4
+        width="100%",
+        thickness=1,
+        color=colors.black,
+        spaceBefore=2,
+        spaceAfter=4,
     )
 
 
@@ -230,7 +233,6 @@ def build_pdf(structured: dict, filename: str = "AutoResume.pdf"):
             loc = (ed.get("location") or "").strip()
             dates = (ed.get("date") or ed.get("dates") or "").strip()
 
-            # GPA (optional)
             gpa = ed.get("GPA") or ed.get("gpa")
             if gpa:
                 degree = f"{degree} — GPA: {gpa}"
@@ -269,7 +271,7 @@ def build_pdf(structured: dict, filename: str = "AutoResume.pdf"):
             # Handle tools as string OR list
             val = p.get("tools")
             if isinstance(val, list):
-                tools = ", ".join(map(str, val))  # ["Python","Pandas"] -> "Python, Pandas"
+                tools = ", ".join(map(str, val))
             else:
                 tools = (val or "").strip()
 
