@@ -28,7 +28,7 @@ PY
 # App code
 COPY src ./src
 COPY pyproject.toml ./pyproject.toml
-COPY builder.py pdf_generator.py ./  # makes imports in src/cli.py work
+# no extra COPY needed; imports use src.*
 
 # Default command can be overridden at run time
 CMD ["python", "-m", "src.cli", "--help"]
