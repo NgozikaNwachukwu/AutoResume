@@ -1,13 +1,5 @@
-# Auto-install reportlab if missing
-try:
-    from reportlab.lib.pagesizes import LETTER
-except ModuleNotFoundError:
-    import os
+# src/pdf_generator.py
 
-    os.system("pip install reportlab")
-    from reportlab.lib.pagesizes import LETTER
-
-# pdf_generator.py
 from reportlab.lib.pagesizes import LETTER
 from reportlab.platypus import (
     SimpleDocTemplate,
@@ -115,9 +107,12 @@ def _styles():
 
 # ---- Utilities ----
 def _hr():
-    # solid horizontal rule like Jake’s
     return HRFlowable(
-        width="100%", thickness=1, color=colors.black, spaceBefore=2, spaceAfter=4
+        width="100%",
+        thickness=1,
+        color=colors.black,
+        spaceBefore=2,
+        spaceAfter=4,
     )
 
 
@@ -127,9 +122,6 @@ def _caps(s: str) -> str:
 
 def _contact_line(c: dict) -> str:
     bits = []
-    # keep plain text to avoid link styling
-
-    # Jake has contact below the name; we build only the line content here
     loc = c.get("location") or c.get("Location")
     if c.get("email"):
         bits.append(c["email"])
@@ -174,7 +166,6 @@ def _two_col_row(
 
 
 def _subrow(left_text, right_text, styles):
-    # second line under a role/school: e.g., Company (italic) vs location/date
     t = Table(
         [
             [
@@ -202,7 +193,7 @@ def _subrow(left_text, right_text, styles):
 def _bullets(styles, items):
     pars = []
     for raw in items or []:
-        t = raw.lstrip("• ").rstrip(".")
+        t = str(raw).lstrip("• ").rstrip(".")
         pars.append(ListItem(Paragraph(t + ".", styles["body"]), leftIndent=6))
     return ListFlowable(pars, bulletType="bullet", leftIndent=14)
 
@@ -223,7 +214,7 @@ def build_pdf(structured: dict, filename: str = "AutoResume.pdf"):
     )
     story = []
 
-    # NAME (center, bold) + CONTACT (center)
+    # NAME + CONTACT
     contact = structured.get("contact", {})
     name = contact.get("full_name") or contact.get("Full name") or ""
     if name:
@@ -243,24 +234,14 @@ def build_pdf(structured: dict, filename: str = "AutoResume.pdf"):
             degree = (ed.get("degree") or "").strip()
             loc = (ed.get("location") or "").strip()
             dates = (ed.get("date") or ed.get("dates") or "").strip()
-            # Row 1: School (bold) | Location (right)
-            # story.append(_two_col_row(school, loc, S))
 
-            # Get GPA (check both uppercase and lowercase keys just in case)
             gpa = ed.get("GPA") or ed.get("gpa")
             if gpa:
                 degree = f"{degree} — GPA: {gpa}"
 
-            # Row 2: Degree (italic) | Dates (right)
             story.append(_two_col_row(school, loc, S))
             story.append(_subrow(degree, dates, S))
             story.append(Spacer(1, 6))
-
-            # Row 1: School (bold) | Location (right)
-    # story.append(_two_col_row(school, loc, S))
-    # Row 2: Degree (italic) | Dates (right)
-    # story.append(_subrow(degree, dates, S))
-    # story.append(Spacer(1, 6))
 
     # EXPERIENCE
     exp = structured.get("experience", [])
@@ -273,9 +254,7 @@ def build_pdf(structured: dict, filename: str = "AutoResume.pdf"):
             loc = (e.get("location") or "").strip()
             dates = (e.get("dates") or e.get("date") or "").strip()
 
-            # Row 1: Role (bold) | Dates (right)
             story.append(_two_col_row(title, dates, S))
-            # Row 2: Company (italic) | Location (right)
             story.append(_subrow(company, loc, S))
 
             bullets = e.get("bullets", [])
@@ -290,7 +269,14 @@ def build_pdf(structured: dict, filename: str = "AutoResume.pdf"):
         story.append(_hr())
         for p in projects:
             title = (p.get("title") or "").strip()
-            tools = (p.get("tools") or "").strip()
+
+            # Handle tools as string OR list
+            val = p.get("tools")
+            if isinstance(val, list):
+                tools = ", ".join(map(str, val))
+            else:
+                tools = (val or "").strip()
+
             dates = (p.get("dates") or p.get("date") or "").strip()
 
             left = f"{title}" + (f" | {tools}" if tools else "")
@@ -300,7 +286,7 @@ def build_pdf(structured: dict, filename: str = "AutoResume.pdf"):
                 story.append(_bullets(S, bullets))
             story.append(Spacer(1, 6))
 
-    # TECHNICAL SKILLS (inline categories)
+    # TECHNICAL SKILLS
     skills = structured.get("skills", {})
     if skills:
         story.append(Paragraph(_caps("Technical Skills"), S["section"]))
@@ -313,7 +299,7 @@ def build_pdf(structured: dict, filename: str = "AutoResume.pdf"):
             story.append(Paragraph(f"<b>{category}:</b> {txt}", S["skill"]))
         story.append(Spacer(1, 6))
 
-    # EXTRACURRICULARS (optional)
+    # EXTRACURRICULARS
     extras = structured.get("extracurriculars", [])
     if extras:
         story.append(Paragraph(_caps("Extracurriculars"), S["section"]))
