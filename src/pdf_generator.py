@@ -138,7 +138,9 @@ def _contact_line(c: dict) -> str:
     return " • ".join(bits)
 
 
-def _two_col_row(left_para, right_para, styles, col_ratio=(0.72, 0.28), pad=(0, 0, 0, 0)):
+def _two_col_row(
+    left_para, right_para, styles, col_ratio=(0.72, 0.28), pad=(0, 0, 0, 0)
+):
     t = Table(
         [
             [
