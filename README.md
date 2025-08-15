@@ -15,6 +15,7 @@
 - Git + GitHub
 - GitHub Actions
 - Docker
+- Kubernets
 - Azure (App Service or ACR)
 - zsh (Mac terminal) / bash (Windows)
 - Scrum methodology (Agile board via GitHub Projects)
