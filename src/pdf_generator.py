@@ -15,6 +15,17 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
 from reportlab.lib import colors
 from reportlab.lib.units import inch
+import unicodedata  # add this next to your other imports
+
+def _norm(s: str) -> str:
+    s = unicodedata.normalize("NFKC", str(s or ""))
+    return (
+        s.replace("\u2013", "-")   # en dash –
+         .replace("\u2014", "-")   # em dash —
+         .replace("\u2212", "-")   # minus sign −
+         .replace("\u00A0", " ")   # non-breaking space
+    )
+
 
 
 # ---- Styles (monochrome, Helvetica) ----
