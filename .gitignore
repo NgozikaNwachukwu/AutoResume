@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 .DS_Store
 src/AutoResume.pdf
+
+# Build artifacts
+*.pdf
