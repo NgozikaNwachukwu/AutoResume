@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: autoresume-generate-pdf
+  namespace: autoresume
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: autoresume
+          image: ghcr.io/ngozikanwachukwu/autoresume:main
+          imagePullPolicy: Always
+          workingDir: /app
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          command: ["python", "-m", "src.cli", "--input", "/work/minimal.json", "--output", "/work/AutoResume.pdf"]
+          volumeMounts:
+            - name: work
+              mountPath: /work
+      volumes:
+        - name: work
+          configMap:
+            name: autoresume-sample
+            items:
+              - key: minimal.json
+                path: minimal.json
