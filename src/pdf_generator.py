@@ -25,7 +25,7 @@ def _norm(s: str) -> str:
         s.replace("\u2013", "-")  # en dash –
         .replace("\u2014", "-")  # em dash —
         .replace("\u2212", "-")  # minus sign −
-        .replace("\u00A0", " ")  # non-breaking space
+        .replace("\u00a0", " ")  # non-breaking space
     )
 
 
@@ -323,4 +323,3 @@ def build_pdf(structured: dict, filename: str = "AutoResume.pdf"):
 
     doc.build(story)
     return filename
-
