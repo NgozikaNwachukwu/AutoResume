@@ -15,17 +15,18 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
 from reportlab.lib import colors
 from reportlab.lib.units import inch
-import unicodedata  # add this next to your other imports
+import unicodedata
 
+
+# Normalize fancy Unicode to ASCII-friendly characters for Helvetica
 def _norm(s: str) -> str:
     s = unicodedata.normalize("NFKC", str(s or ""))
     return (
-        s.replace("\u2013", "-")   # en dash –
-         .replace("\u2014", "-")   # em dash —
-         .replace("\u2212", "-")   # minus sign −
-         .replace("\u00A0", " ")   # non-breaking space
+        s.replace("\u2013", "-")  # en dash –
+        .replace("\u2014", "-")  # em dash —
+        .replace("\u2212", "-")  # minus sign −
+        .replace("\u00A0", " ")  # non-breaking space
     )
-
 
 
 # ---- Styles (monochrome, Helvetica) ----
@@ -119,33 +120,29 @@ def _styles():
 # ---- Utilities ----
 def _hr():
     return HRFlowable(
-        width="100%",
-        thickness=1,
-        color=colors.black,
-        spaceBefore=2,
-        spaceAfter=4,
+        width="100%", thickness=1, color=colors.black, spaceBefore=2, spaceAfter=4
     )
 
 
 def _caps(s: str) -> str:
-    return (s or "").upper()
+    return _norm(s).upper()
 
 
 def _contact_line(c: dict) -> str:
     bits = []
     loc = c.get("location") or c.get("Location")
     if c.get("email"):
-        bits.append(c["email"])
+        bits.append(_norm(c["email"]))
     if c.get("phone"):
-        bits.append(c["phone"])
+        bits.append(_norm(c["phone"]))
     if c.get("linkedin"):
-        bits.append(c["linkedin"])
+        bits.append(_norm(c["linkedin"]))
     if c.get("github"):
-        bits.append(c["github"])
+        bits.append(_norm(c["github"]))
     if c.get("portfolio"):
-        bits.append(c["portfolio"])
+        bits.append(_norm(c["portfolio"]))
     if loc:
-        bits.insert(0, loc)
+        bits.insert(0, _norm(loc))
     return " • ".join(bits)
 
 
@@ -204,7 +201,7 @@ def _subrow(left_text, right_text, styles):
 def _bullets(styles, items):
     pars = []
     for raw in items or []:
-        t = str(raw).lstrip("• ").rstrip(".")
+        t = _norm(str(raw)).lstrip("• ").rstrip(".")
         pars.append(ListItem(Paragraph(t + ".", styles["body"]), leftIndent=6))
     return ListFlowable(pars, bulletType="bullet", leftIndent=14)
 
@@ -221,13 +218,13 @@ def build_pdf(structured: dict, filename: str = "AutoResume.pdf"):
         topMargin=0.6 * inch,
         bottomMargin=0.6 * inch,
         title="AutoResume",
-        author=(structured.get("contact", {}) or {}).get("full_name", ""),
+        author=_norm((structured.get("contact", {}) or {}).get("full_name", "")),
     )
     story = []
 
     # NAME + CONTACT
-    contact = structured.get("contact", {})
-    name = contact.get("full_name") or contact.get("Full name") or ""
+    contact = structured.get("contact", {}) or {}
+    name = _norm(contact.get("full_name") or contact.get("Full name") or "")
     if name:
         story.append(Paragraph(name, S["name"]))
     contact_line = _contact_line(contact)
@@ -236,34 +233,34 @@ def build_pdf(structured: dict, filename: str = "AutoResume.pdf"):
     story.append(Spacer(1, 6))
 
     # EDUCATION
-    edu = structured.get("education", [])
+    edu = structured.get("education", []) or []
     if edu:
         story.append(Paragraph(_caps("Education"), S["section"]))
         story.append(_hr())
         for ed in edu:
-            school = (ed.get("school") or "").strip()
-            degree = (ed.get("degree") or "").strip()
-            loc = (ed.get("location") or "").strip()
-            dates = (ed.get("date") or ed.get("dates") or "").strip()
+            school = _norm(ed.get("school"))
+            degree = _norm(ed.get("degree"))
+            loc = _norm(ed.get("location"))
+            dates = _norm(ed.get("date") or ed.get("dates"))
 
             gpa = ed.get("GPA") or ed.get("gpa")
             if gpa:
-                degree = f"{degree} — GPA: {gpa}"
+                degree = f"{degree} — GPA: {_norm(gpa)}"
 
             story.append(_two_col_row(school, loc, S))
             story.append(_subrow(degree, dates, S))
             story.append(Spacer(1, 6))
 
     # EXPERIENCE
-    exp = structured.get("experience", [])
+    exp = structured.get("experience", []) or []
     if exp:
         story.append(Paragraph(_caps("Experience"), S["section"]))
         story.append(_hr())
         for e in exp:
-            title = (e.get("title") or "").strip()
-            company = (e.get("company") or "").strip()
-            loc = (e.get("location") or "").strip()
-            dates = (e.get("dates") or e.get("date") or "").strip()
+            title = _norm(e.get("title"))
+            company = _norm(e.get("company"))
+            loc = _norm(e.get("location"))
+            dates = _norm(e.get("dates") or e.get("date"))
 
             story.append(_two_col_row(title, dates, S))
             story.append(_subrow(company, loc, S))
@@ -274,21 +271,21 @@ def build_pdf(structured: dict, filename: str = "AutoResume.pdf"):
                 story.append(Spacer(1, 6))
 
     # PROJECTS
-    projects = structured.get("projects", [])
+    projects = structured.get("projects", []) or []
     if projects:
         story.append(Paragraph(_caps("Projects"), S["section"]))
         story.append(_hr())
         for p in projects:
-            title = (p.get("title") or "").strip()
+            title = _norm(p.get("title"))
 
             # Handle tools as string OR list
             val = p.get("tools")
             if isinstance(val, list):
-                tools = ", ".join(map(str, val))
+                tools = _norm(", ".join(map(str, val)))
             else:
-                tools = (val or "").strip()
+                tools = _norm(val or "")
 
-            dates = (p.get("dates") or p.get("date") or "").strip()
+            dates = _norm(p.get("dates") or p.get("date"))
 
             left = f"{title}" + (f" | {tools}" if tools else "")
             story.append(_two_col_row(left, dates, S))
@@ -298,26 +295,26 @@ def build_pdf(structured: dict, filename: str = "AutoResume.pdf"):
             story.append(Spacer(1, 6))
 
     # TECHNICAL SKILLS
-    skills = structured.get("skills", {})
+    skills = structured.get("skills", {}) or {}
     if skills:
         story.append(Paragraph(_caps("Technical Skills"), S["section"]))
         story.append(_hr())
         for category, items in skills.items():
             if isinstance(items, (list, tuple)):
-                txt = ", ".join([str(x).strip() for x in items if str(x).strip()])
+                txt = ", ".join([_norm(x) for x in items if str(x).strip()])
             else:
-                txt = str(items)
-            story.append(Paragraph(f"<b>{category}:</b> {txt}", S["skill"]))
+                txt = _norm(items)
+            story.append(Paragraph(f"<b>{_norm(category)}:</b> {txt}", S["skill"]))
         story.append(Spacer(1, 6))
 
     # EXTRACURRICULARS
-    extras = structured.get("extracurriculars", [])
+    extras = structured.get("extracurriculars", []) or []
     if extras:
         story.append(Paragraph(_caps("Extracurriculars"), S["section"]))
         story.append(_hr())
         for ex in extras:
-            title = (ex.get("title") or "").strip()
-            dates = (ex.get("dates") or ex.get("date") or "").strip()
+            title = _norm(ex.get("title"))
+            dates = _norm(ex.get("dates") or ex.get("date"))
             story.append(_two_col_row(title, dates, S))
             bullets = ex.get("bullets", [])
             if bullets:
@@ -326,3 +323,4 @@ def build_pdf(structured: dict, filename: str = "AutoResume.pdf"):
 
     doc.build(story)
     return filename
+
