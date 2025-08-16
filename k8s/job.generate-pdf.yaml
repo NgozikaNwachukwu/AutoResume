@@ -13,17 +13,28 @@ spec:
           image: ghcr.io/ngozikanwachukwu/autoresume:main
           imagePullPolicy: Always
           workingDir: /app
-          env:
-            - name: PYTHONUNBUFFERED
-              value: "1"
-          command: ["python", "-m", "src.cli", "--input", "/work/minimal.json", "--output", "/work/AutoResume.pdf"]
+          command:
+            - python
+            - -m
+            - src.cli
+            - --input
+            - /in/minimal.json
+            - --output
+            - /out/AutoResume.pdf
           volumeMounts:
-            - name: work
-              mountPath: /work
+            # Read-only input JSON from ConfigMap
+            - name: input
+              mountPath: /in
+              readOnly: true
+            # Writable scratch space for the generated PDF
+            - name: output
+              mountPath: /out
       volumes:
-        - name: work
+        - name: input
           configMap:
             name: autoresume-sample
             items:
               - key: minimal.json
                 path: minimal.json
+        - name: output
+          emptyDir: {}
