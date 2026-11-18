@@ -25,7 +25,7 @@
 - Jessica Okpede (collaborator)
 
 ## Timeline
-This is a 10-day DevOps project aimed for completion by mid-August 2025 in time for Winter co-op applications.
+This was finished in a month
 
 ## Project Board
 AutoResume Sprint Board: https://github.com/users/NgozikaNwachukwu/projects/1/views/1
